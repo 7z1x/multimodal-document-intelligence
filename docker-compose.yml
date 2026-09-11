@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: mdi
+      POSTGRES_USER: mdi
+      POSTGRES_PASSWORD: mdi
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mdi -d mdi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mdi_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  mdi_postgres_data:

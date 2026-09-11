@@ -1,0 +1,108 @@
+# ==============================================================================
+# Git Ignore Configuration
+# Project: Multimodal Document Intelligence with Agentic RAG
+# ==============================================================================
+
+# Environment & Secret Variables
+.env
+.env.*
+!.env.example
+
+# Python Runtime & Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Node.js & Next.js Build Outputs
+node_modules/
+.turbo/
+apps/web/node_modules/
+.pnp
+.pnp.js
+apps/web/.next/
+apps/web/out/
+apps/web/build/
+.next/
+out/
+next-env.d.ts
+
+# Testing & Quality Assurance Caches
+.pytest_cache/
+.coverage
+.coverage.*
+coverage/
+coverage.xml
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+
+# Local Database Files
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+postgres_data/
+pgdata/
+
+# Model Weights & AI Framework Caches
+models/
+.paddleocr/
+.cache/
+huggingface/
+torch_cache/
+*.onnx
+*.bin
+*.pt
+*.pth
+
+# Storage Runtime & User Uploaded Documents
+storage/*
+!storage/.gitkeep
+tmp/
+temp/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+# Allow committed synthetic evaluation samples and ground-truth assets
+!datasets/samples/**
+!datasets/ground-truth/**
+
+# Application & Audit Logs
+*.log
+logs/
+*.log.*
+
+# IDE & Operating System Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

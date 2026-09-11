@@ -1,0 +1,17 @@
+{
+  "name": "multimodal-document-intelligence",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint && uv --directory services/api run ruff check .",
+    "typecheck": "turbo typecheck && uv --directory services/api run mypy app",
+    "test": "turbo test && uv --directory services/api run pytest -q",
+    "api:dev": "uv --directory services/api run uvicorn app.main:app --reload",
+    "api:migrate": "uv --directory services/api run alembic upgrade head"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}
