@@ -68,7 +68,9 @@ def main() -> int:
         "mean_confidence": result.confidence,
         "reference": reference,
         "prediction": prediction,
-        "limitation": "One clean synthetic scan; noisy scans and production layouts remain unmeasured.",
+        "limitation": (
+            "One clean synthetic scan; noisy scans and production layouts remain unmeasured."
+        ),
     }
     serialized = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
     print(serialized)
