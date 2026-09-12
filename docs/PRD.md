@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Stage 9 Grounded Agentic RAG Implemented (Evaluation and Observability Pending)
+Approved Baseline; Implemented Through Stage 14 Evaluation and Observability
 
 ---
 
@@ -65,7 +65,7 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
    - Query rewrite untuk memperjelas istilah akuntansi/finance.
    - Retrieval ulang bersyarat jika dokumen yang ditarik tidak relevan atau tidak memadai.
    - Evaluasi verifikasi sitasi sebelum jawaban diserahkan kepada pengguna.
-7. **Observability & Audit Trail:** Pelacakan jejak eksekusi secara mendalam menggunakan self-hosted Langfuse (mencatat latency, pemakaian token, estimasi biaya, dan status setiap node agent).
+7. **Observability & Audit Trail:** Trace ID, latency dan status node disimpan secara internal; Langfuse self-hosted adalah exporter opsional. Token/cost hanya dicatat ketika metadata usage tersedia dari provider.
 8. **Evaluation Framework:** Pipeline pengujian komprehensif yang membedakan secara tegas antara metrik deterministik (string exact match, CER/WER, kalkulasi numerik) dan metrik LLM-as-judge (faithfulness, answer correctness).
 
 ---
@@ -190,7 +190,7 @@ Setiap fitur dalam ruang lingkup MVP dianggap diterima apabila memenuhi kriteria
    - Pengguna mengajukan pertanyaan mengenai item pada invoice, sistem menjawab dengan benar dan menyertakan nomor halaman serta teks kutipan yang ada pada dokumen tersebut.
    - Jika pengguna menanyakan data yang tidak tercantum dalam invoice (contoh: "Siapa nama anjing peliharaan vendor?"), sistem wajib menolak menjawab (abstain) dan menyatakan data tidak tersedia.
 4. **AC-04 (Tracing & Observability):**
-   - Setiap sesi Q&A memunculkan trace lengkap di dashboard Langfuse lokal yang mencakup durasi waktu, node agent yang dipanggil, token masukan/keluaran, dan estimasi biaya.
+   - Setiap sesi Q&A menghasilkan trace internal dan audit JSONL teredaksi. Jika Langfuse dikonfigurasi, trace agent dikirim ke dashboard; token/cost boleh kosong ketika provider tidak melaporkannya.
 
 ---
 

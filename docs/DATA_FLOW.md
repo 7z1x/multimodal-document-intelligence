@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Implemented Through Stage 12 Reranking, Grounded Generation, and Citation Verification
+Implemented Through Stage 14 Evaluation, Audit Logging, and Optional Langfuse Export
 
 ---
 
@@ -199,22 +199,23 @@ flowchart TD
 ---
 
 ### Tahap 13: Evaluation Sampling
-- **Deskripsi:** Sampel interaksi tertentu dievaluasi secara otomatis menggunakan suite pengujian evaluasi (menghitung kesesuaian sitasi, faithfulness via Ragas, dan kebenaran jawaban pada dataset ground-truth).
+- **Deskripsi:** Pengguna memilih RAG run dari halaman audit untuk menjalankan evaluation batch. Metrik deterministik menghitung citation match, ranked context precision, Hit@K, abstention correctness, dan latency gate. Muse melalui OpenCode menilai faithfulness serta answer correctness bila jawaban referensi diberikan.
 - **Input:** Pasangan (Pertanyaan, Konteks yang Ditarik, Jawaban yang Dihasilkan, Sitasi, Ground Truth opsional).
 - **Output:** Skor metrik evaluasi numerik (Faithfulness, Answer Correctness, Context Precision, Citation Match).
 - **Kemungkinan Gagal:**
   - Kegagalan API evaluator LLM-as-judge jika terjadi timeout atau kuota habis.
-- **Data yang Disimpan:** Baris pada tabel `evaluation_runs` (id, document_id, metric_name, score, evaluation_type, metadata_json, created_at).
+- **Data yang Disimpan:** Satu baris per metrik pada `evaluation_runs`, dikelompokkan dengan `batch_id`, lengkap dengan threshold, pass/fail, evaluator, tipe evaluasi, metadata, dan timestamp.
 
 ---
 
 ### Tahap 14: Audit Logging & Tracing
-- **Deskripsi:** Mengirimkan seluruh jejak siklus hidup pemrosesan dokumen dan sesi Q&A ke server Langfuse self-hosted untuk observability, serta mencatat log audit ke sistem log internal dengan penyaringan data sensitif (redaction).
-- **Input:** Trace context, event name, latency timer, token count, error stack trace (jika ada), payload log.
-- **Output:** Konfirmasi penerimaan trace oleh Langfuse (`trace_id`) dan penulisan baris log terstruktur (JSON format) di file log server.
+- **Deskripsi:** Setiap RAG run mendapat trace ID, latency per node, audit event PostgreSQL, dan satu record JSONL yang telah melalui redaction. Jika dikonfigurasi, trace juga diekspor melalui Langfuse SDK v4; kegagalan exporter tidak menggagalkan jawaban pengguna.
+- **Input:** Trace context, event name, latency timer, token count bila tersedia, status, dan payload log terpilih.
+- **Output:** `trace_id`, status ekspor (`sent`, `disabled`, `misconfigured`, atau `failed`), dan baris log JSON terstruktur.
 - **Kemungkinan Gagal:**
   - Server Langfuse lokal sedang tidak aktif/down (sistem utama tetap berjalan normal / fail-safe).
   - Buffer log internal penuh.
 - **Data yang Disimpan:**
-  - Jejak lengkap (*trace trees*) di server Langfuse.
-  - Berkas log audit terenkripsi/terproteksi di sistem operasi dengan nomor rekening atau data finansial tersensor.
+  - Event internal pada tabel `audit_events`.
+  - Jejak pada Langfuse ketika integrasi aktif.
+  - Berkas `storage/audit-logs/audit-YYYY-MM-DD.jsonl` dengan email, nomor panjang, token, password, dan secret tersensor.

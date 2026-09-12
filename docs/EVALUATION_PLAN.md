@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Architecture Phase (Evaluation Framework & Metric Definitions - Provisional Targets Only, No Fabricated Numbers)
+Stage 13 Runtime Implemented; Full Dataset Baseline Still Not Measured
 
 ---
 
@@ -155,8 +155,8 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
     - Hit@3 >= 0.80
     - Hit@5 >= 0.90
 
-#### B. Context Precision & Context Recall (via Ragas Framework)
-- **Tipe:** Campuran (LLM-as-judge terstruktur).
+#### B. Context Precision & Context Recall
+- **Tipe:** Context Precision berbasis ID bersifat deterministik; Context Recall dataset-level masih direncanakan untuk benchmark offline.
 - **Context Precision:** Mengukur proporsi informasi relevan yang berada di peringkat paling atas di antara seluruh chunk yang ditarik.
   - **Measured Result:** not measured
   - **Provisional Target (initial engineering target — provisional, subject to baseline measurement):** Context Precision >= 0.85
@@ -185,7 +185,7 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
     - Citation Page Accuracy >= 0.88
     - Citation Text Support >= 0.85
 
-#### B. Faithfulness (Ragas)
+#### B. Faithfulness (Muse/OpenCode Structured Judge)
 - **Tipe:** LLM-as-judge.
 - **Tujuan:** Mengukur apakah semua klaim fakta dalam jawaban yang dihasilkan model didukung langsung oleh konteks yang ditarik (mendeteksi halusinasi).
 - **Status Metrik:**
@@ -193,7 +193,7 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
   - **Provisional Target (initial engineering target — provisional, subject to baseline measurement):** Faithfulness Score >= 0.90
   - **Final Acceptance Threshold:** Faithfulness Score >= 0.82
 
-#### C. Answer Correctness (Ragas)
+#### C. Answer Correctness (Muse/OpenCode Structured Judge)
 - **Tipe:** LLM-as-judge.
 - **Tujuan:** Menilai akurasi semantik jawaban model dibandingkan dengan jawaban emas ground-truth.
 - **Status Metrik:**
@@ -273,12 +273,12 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
 | **Retrieval Hit@1** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@1 >= 0.75 | Hit@1 >= 0.65 |
 | **Retrieval Hit@3** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@3 >= 0.88 | Hit@3 >= 0.80 |
 | **Retrieval Hit@5** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@5 >= 0.95 | Hit@5 >= 0.90 |
-| **Context Precision** | Retrieval | Ragas Evaluator Prompt | Tidak (LLM-as-judge) | not measured | Score >= 0.85 | Score >= 0.75 |
-| **Context Recall** | Retrieval | Ragas Evaluator Prompt | Tidak (LLM-as-judge) | not measured | Score >= 0.90 | Score >= 0.80 |
+| **Context Precision** | Retrieval | Ranked ID Average Precision | Ya (Deterministik) | not measured | Score >= 0.85 | Score >= 0.75 |
+| **Context Recall** | Retrieval | Offline Ground-Truth Coverage | Ya (Deterministik) | not measured | Score >= 0.90 | Score >= 0.80 |
 | **Citation Page Accuracy** | Citations | Integer Comparison Page Number | Ya (Deterministik) | not measured | Accuracy >= 0.95 | Accuracy >= 0.88 |
 | **Citation Text Support** | Citations | Substring Search & Normalized Fuzzy | Ya (Deterministik) | not measured | Support >= 0.92 | Support >= 0.85 |
-| **Faithfulness** | Generation / Groundedness | Ragas Claim-Level Decomposition | Tidak (LLM-as-judge) | not measured | Score >= 0.90 | Score >= 0.82 |
-| **Answer Correctness** | Generation / Groundedness | Ragas Semantic Similarity & Factual | Tidak (LLM-as-judge) | not measured | Score >= 0.88 | Score >= 0.80 |
+| **Faithfulness** | Generation / Groundedness | Muse Structured LLM-as-Judge | Tidak (LLM-as-judge) | not measured | Score >= 0.90 | Score >= 0.82 |
+| **Answer Correctness** | Generation / Groundedness | Muse Structured LLM-as-Judge | Tidak (LLM-as-judge) | not measured | Score >= 0.88 | Score >= 0.80 |
 | **Abstention Accuracy** | Generation / Safety | String Pattern Match ("Tidak Ditemukan")| Ya (Deterministik) | not measured | Accuracy >= 0.95 | Accuracy >= 0.90 |
 | **Native Extraction Latency** | Performance | System Clock Timer (p95) | Ya (Deterministik) | not measured | p95 <= 2 detik | p95 <= 4 detik |
 | **PaddleOCR CPU Latency** | Performance | System Clock Timer (p95, 1 hal) | Ya (Deterministik) | not measured | p95 <= 15 detik | p95 <= 25 detik |

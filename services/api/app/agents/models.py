@@ -28,4 +28,6 @@ class RagRun(Base):
     citation_support_score: Mapped[float] = mapped_column(Float, default=0)
     citation_errors: Mapped[list[str]] = mapped_column(JSON, default=list)
     latency_ms: Mapped[int] = mapped_column(Integer)
+    trace_id: Mapped[str] = mapped_column(String(32), index=True)
+    observability_status: Mapped[str] = mapped_column(String(24), default="disabled")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

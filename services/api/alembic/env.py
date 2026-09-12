@@ -12,7 +12,9 @@ from app.documents import (
     models,  # noqa: F401
     page_models,  # noqa: F401
 )
+from app.evaluation import models as evaluation_models  # noqa: F401
 from app.extraction import models as extraction_models  # noqa: F401
+from app.observability import models as observability_models  # noqa: F401
 from app.retrieval import models as retrieval_models  # noqa: F401
 
 config = context.config

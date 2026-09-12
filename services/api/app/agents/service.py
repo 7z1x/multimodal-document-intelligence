@@ -14,6 +14,7 @@ from app.documents.models import Document, DocumentStatus
 from app.generation.base import RagModel
 from app.generation.citations import verify_citation_support
 from app.generation.schemas import CitationVerification, GeneratedAnswer
+from app.observability.service import ObservabilityService
 from app.reranking.base import Reranker
 from app.retrieval.base import Retriever
 from app.retrieval.schemas import RetrievedChunk
@@ -43,6 +44,7 @@ class AgenticRagService:
         top_k: int,
         min_relevance: float,
         max_attempts: int,
+        observability: ObservabilityService | None = None,
     ) -> None:
         self.session = session
         self.retriever = retriever
@@ -51,6 +53,7 @@ class AgenticRagService:
         self.top_k = top_k
         self.min_relevance = min_relevance
         self.max_attempts = max_attempts
+        self.observability = observability
         self.graph = self._build_graph()
 
     def _build_graph(
@@ -99,6 +102,7 @@ class AgenticRagService:
                 status_code=409,
             )
         response = await self.execute(document_id, question)
+        trace_id = uuid.uuid4().hex
         run = RagRun(
             document_id=document_id,
             question=question,
@@ -113,10 +117,24 @@ class AgenticRagService:
             citation_support_score=response.citation_support_score,
             citation_errors=response.citation_errors,
             latency_ms=response.latency_ms,
+            trace_id=trace_id,
+            observability_status="disabled" if self.observability is None else "pending",
         )
         self.session.add(run)
         await self.session.commit()
         response.run_id = run.id
+        response.trace_id = trace_id
+        if self.observability is not None:
+            try:
+                response.observability_status = await self.observability.record_rag_run(
+                    run,
+                    response,
+                )
+            except Exception:  # observability is deliberately fail-safe
+                await self.session.rollback()
+                run.observability_status = "failed"
+                await self.session.commit()
+                response.observability_status = "failed"
         return response
 
     async def execute(self, document_id: uuid.UUID, question: str) -> AgentResponse:
@@ -176,14 +194,22 @@ class AgenticRagService:
         return [RagRunRead.model_validate(row) for row in rows]
 
     async def _rewrite(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         attempt = state.get("attempt", 0)
         query = await self.model.rewrite(state["question"], attempt)
         return {
             "rewritten_query": query,
-            "steps": self._step(state, "rewrite", "ok", f"attempt={attempt + 1}"),
+            "steps": self._step(
+                state,
+                "rewrite",
+                "ok",
+                f"attempt={attempt + 1}",
+                round((perf_counter() - started) * 1000),
+            ),
         }
 
     async def _retrieve(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         contexts = await self.retriever.search(
             state["document_id"],
             state["rewritten_query"],
@@ -191,10 +217,17 @@ class AgenticRagService:
         )
         return {
             "contexts": contexts,
-            "steps": self._step(state, "retrieve", "ok", f"chunks={len(contexts)}"),
+            "steps": self._step(
+                state,
+                "retrieve",
+                "ok",
+                f"chunks={len(contexts)}",
+                round((perf_counter() - started) * 1000),
+            ),
         }
 
     async def _rerank(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         contexts = state.get("contexts", [])
         reranked = await self.reranker.rerank(state["question"], contexts)
         top_score = reranked[0].relevance_score if reranked else 0.0
@@ -205,10 +238,12 @@ class AgenticRagService:
                 "rerank",
                 "ok" if reranked else "skipped",
                 f"chunks={len(reranked)}, top_relevance={top_score:.4f}",
+                round((perf_counter() - started) * 1000),
             ),
         }
 
     async def _evaluate_context(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         contexts = state.get("contexts", [])
         sufficient = any(chunk.relevance_score >= self.min_relevance for chunk in contexts)
         return {
@@ -218,6 +253,7 @@ class AgenticRagService:
                 "evaluate_context",
                 "sufficient" if sufficient else "insufficient",
                 f"threshold={self.min_relevance}",
+                round((perf_counter() - started) * 1000),
             ),
         }
 
@@ -229,6 +265,7 @@ class AgenticRagService:
         return "abstain"
 
     async def _generate(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         generated = await self.model.generate(state["question"], state.get("contexts", []))
         return {
             "generated": generated,
@@ -237,10 +274,12 @@ class AgenticRagService:
                 "generate",
                 "answer" if generated.can_answer else "cannot_answer",
                 f"citations={len(generated.citations)}",
+                round((perf_counter() - started) * 1000),
             ),
         }
 
     async def _verify_citations(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         verification = verify_citation_support(
             state["generated"],
             state.get("contexts", []),
@@ -256,6 +295,7 @@ class AgenticRagService:
                     f"supported={verification.supported_citations}/"
                     f"{verification.total_citations}, score={verification.support_score:.4f}"
                 ),
+                round((perf_counter() - started) * 1000),
             ),
         }
 
@@ -267,13 +307,21 @@ class AgenticRagService:
         return "abstain"
 
     async def _prepare_retry(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         next_attempt = state.get("attempt", 0) + 1
         return {
             "attempt": next_attempt,
-            "steps": self._step(state, "prepare_retry", "retry", f"attempt={next_attempt + 1}"),
+            "steps": self._step(
+                state,
+                "prepare_retry",
+                "retry",
+                f"attempt={next_attempt + 1}",
+                round((perf_counter() - started) * 1000),
+            ),
         }
 
     async def _abstain(self, state: AgentState) -> AgentState:
+        started = perf_counter()
         previous = state.get("citation_verification")
         verification = previous or CitationVerification(
             valid=False,
@@ -298,6 +346,7 @@ class AgenticRagService:
                 "abstain",
                 "safe_stop",
                 "maximum retrieval attempts reached",
+                round((perf_counter() - started) * 1000),
             ),
         }
 
@@ -307,8 +356,17 @@ class AgenticRagService:
         node: str,
         outcome: str,
         detail: str,
+        duration_ms: int,
     ) -> list[AgentStep]:
-        return [*state.get("steps", []), AgentStep(node=node, outcome=outcome, detail=detail)]
+        return [
+            *state.get("steps", []),
+            AgentStep(
+                node=node,
+                outcome=outcome,
+                detail=detail,
+                duration_ms=duration_ms,
+            ),
+        ]
 
     @staticmethod
     def _retrieval_trace(contexts: list[RetrievedChunk]) -> list[RetrievalTraceItem]:

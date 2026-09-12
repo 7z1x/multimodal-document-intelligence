@@ -12,6 +12,7 @@ class AgentStep(BaseModel):
     node: str
     outcome: str
     detail: str
+    duration_ms: int = 0
 
 
 class AskRequest(BaseModel):
@@ -28,6 +29,7 @@ class RetrievalTraceItem(BaseModel):
 
 class AgentResponse(BaseModel):
     run_id: uuid.UUID | None = None
+    trace_id: str | None = None
     document_id: uuid.UUID
     question: str
     rewritten_query: str
@@ -42,6 +44,7 @@ class AgentResponse(BaseModel):
     steps: list[AgentStep]
     retrieved_chunks: list[RetrievedChunk]
     retrieval_trace: list[RetrievalTraceItem]
+    observability_status: str = "disabled"
 
 
 class RagRunRead(BaseModel):
@@ -59,6 +62,8 @@ class RagRunRead(BaseModel):
     citation_support_score: float
     citation_errors: list[str]
     latency_ms: int
+    trace_id: str
+    observability_status: str
     retrieved_chunk_ids: list[str]
     retrieval_trace: list[RetrievalTraceItem]
     created_at: datetime

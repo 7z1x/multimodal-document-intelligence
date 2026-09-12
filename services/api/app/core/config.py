@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
@@ -36,7 +36,18 @@ class Settings(BaseSettings):
     rag_min_relevance: float = Field(default=0.15, ge=0, le=1)
     rag_rerank_model_weight: float = Field(default=0.65, ge=0, le=1)
     agent_max_retrieval_attempts: int = Field(default=2, ge=1, le=5)
+    audit_log_dir: Path = REPOSITORY_ROOT / "storage" / "audit-logs"
+    langfuse_enabled: bool = False
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_base_url: str = "http://localhost:3001"
+    langfuse_timeout_seconds: int = Field(default=5, ge=1, le=30)
     cors_origins: list[str] = ["http://localhost:3000"]
+
+    @field_validator("storage_dir", "audit_log_dir", mode="after")
+    @classmethod
+    def resolve_repository_path(cls, value: Path) -> Path:
+        return value if value.is_absolute() else REPOSITORY_ROOT / value
 
 
 @lru_cache

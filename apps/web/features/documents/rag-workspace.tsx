@@ -49,7 +49,7 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a9c2af]">
-            Stage 8–12
+            Stage 8–14
           </p>
           <h4 className="mt-1 font-semibold">Grounded agentic RAG</h4>
         </div>
@@ -157,7 +157,7 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
                 >
                   <span className="text-white/40">{index + 1}</span>
                   <span>{step.node}</span>
-                  <span className="text-[#b9cebd]">{step.outcome}</span>
+                  <span className="text-[#b9cebd]">{step.outcome} · {step.duration_ms} ms</span>
                 </li>
               ))}
             </ol>
@@ -182,12 +182,17 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
           </details>
 
           {answer.run_id ? (
-            <Link
-              className="inline-flex text-xs font-medium text-[#e2cd98] underline underline-offset-4"
-              href={`/audit/${documentId}`}
-            >
-              Open complete audit history →
-            </Link>
+            <div className="space-y-2">
+              <p className="break-all font-mono text-[10px] text-white/35">
+                Trace {answer.trace_id} · Langfuse {answer.observability_status}
+              </p>
+              <Link
+                className="inline-flex text-xs font-medium text-[#e2cd98] underline underline-offset-4"
+                href={`/audit/${documentId}`}
+              >
+                Open evaluation and trace audit →
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : null}

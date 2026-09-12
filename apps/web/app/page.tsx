@@ -4,6 +4,7 @@ const capabilities = [
   { label: "Document intake", state: "Ready", tone: "ready" },
   { label: "PaddleOCR", state: "Ready", tone: "ready" },
   { label: "Agentic RAG", state: "Ready", tone: "ready" },
+  { label: "Evaluation & tracing", state: "Ready", tone: "ready" },
 ];
 
 export default function Home() {
@@ -20,7 +21,7 @@ export default function Home() {
             </h1>
           </div>
           <span className="rounded-full border border-[#55705d]/30 bg-white/60 px-3 py-1.5 text-xs font-medium">
-            Agentic RAG · Stage 12
+            Agentic RAG · Stage 14
           </span>
         </header>
 

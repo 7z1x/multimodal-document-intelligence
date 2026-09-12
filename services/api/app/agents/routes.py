@@ -9,6 +9,8 @@ from app.agents.service import AgenticRagService
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.generation.opencode import OpenCodeRagModel
+from app.observability.exporter import get_trace_exporter
+from app.observability.service import ObservabilityService
 from app.providers.opencode import OpenCodeStructuredClient
 from app.reranking.opencode import OpenCodeReranker
 from app.retrieval.repository import PostgresTextChunkRepository
@@ -40,6 +42,11 @@ def get_agent_service(
         top_k=settings.rag_top_k,
         min_relevance=settings.rag_min_relevance,
         max_attempts=settings.agent_max_retrieval_attempts,
+        observability=ObservabilityService(
+            session=session,
+            exporter=get_trace_exporter(),
+            audit_log_dir=settings.audit_log_dir,
+        ),
     )
 
 

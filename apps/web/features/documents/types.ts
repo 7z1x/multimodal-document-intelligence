@@ -67,6 +67,7 @@ export interface AgentStep {
   node: string;
   outcome: string;
   detail: string;
+  duration_ms: number;
 }
 
 export interface RetrievedChunk {
@@ -91,6 +92,7 @@ export interface RetrievalTraceItem {
 
 export interface AgentResponse {
   run_id: string | null;
+  trace_id: string | null;
   document_id: string;
   question: string;
   rewritten_query: string;
@@ -105,6 +107,7 @@ export interface AgentResponse {
   steps: AgentStep[];
   retrieved_chunks: RetrievedChunk[];
   retrieval_trace: RetrievalTraceItem[];
+  observability_status: string;
 }
 
 export interface RagRun {
@@ -120,7 +123,44 @@ export interface RagRun {
   citation_support_score: number;
   citation_errors: string[];
   latency_ms: number;
+  trace_id: string;
+  observability_status: string;
   retrieved_chunk_ids: string[];
   retrieval_trace: RetrievalTraceItem[];
+  created_at: string;
+}
+
+export interface EvaluationMetric {
+  id: string;
+  metric_name: string;
+  score: number;
+  evaluation_type: "deterministic" | "llm_as_judge";
+  evaluator: string;
+  threshold: number;
+  passed: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface EvaluationBatch {
+  batch_id: string;
+  document_id: string;
+  rag_run_id: string;
+  overall_score: number;
+  passed: boolean;
+  metrics: EvaluationMetric[];
+  created_at: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  trace_id: string;
+  document_id: string;
+  rag_run_id: string;
+  event_name: string;
+  level: string;
+  duration_ms: number;
+  token_count: number | null;
+  payload: Record<string, unknown>;
+  export_status: string;
   created_at: string;
 }

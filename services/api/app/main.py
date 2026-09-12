@@ -9,6 +9,8 @@ from app.agents.routes import router as agents_router
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.documents.routes import router as documents_router
+from app.evaluation.routes import router as evaluation_router
+from app.observability.routes import router as observability_router
 from app.retrieval.routes import router as retrieval_router
 
 settings = get_settings()
@@ -47,3 +49,5 @@ async def health() -> dict[str, str]:
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(retrieval_router, prefix="/api/v1")
 app.include_router(agents_router, prefix="/api/v1")
+app.include_router(evaluation_router, prefix="/api/v1")
+app.include_router(observability_router, prefix="/api/v1")

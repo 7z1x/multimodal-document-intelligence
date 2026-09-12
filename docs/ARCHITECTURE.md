@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Stage 12 Reranking, Generation, and Citation Verification Implemented
+Implemented Through Stage 14 Evaluation and Fail-Safe Observability
 
 ---
 
@@ -112,8 +112,8 @@ multimodal-document-intelligence/
 | `services/api/app/retrieval/` | Chunking berbasis halaman/tabel dan PostgreSQL full-text search dengan filter `document_id`. | Hanya menangani pemotongan dan penarikan konteks; tidak menyusun jawaban akhir ke pengguna. |
 | `services/api/app/generation/` | Penyusunan prompt, sintesis jawaban yang bersumber dari konteks dokumen, pemformatan sitasi halaman, dan aturan abstention ("informasi tidak ditemukan"). | Tidak mengelola koneksi database secara langsung. |
 | `services/api/app/agents/` | State machine workflow menggunakan LangGraph: siklus query rewrite, penarikan dokumen, pengecekan kecukupan konteks, dan verifikasi sitasi sebelum diserahkan ke pengguna. | Hanya mengorkestrasikan interaksi komponen domain; tidak memproses payload HTTP secara langsung. |
-| `services/api/app/evaluation/` | Runner dan utilitas pengujian otomatis: penghitungan metrik deterministik (CER, WER, Field Extraction Accuracy, Hit@K, Citation Match) dan evaluasi Ragas (Faithfulness, Answer Correctness). | Tidak boleh mengubah state produksi atau dijalankan dalam alur request pengguna biasa. |
-| `services/api/app/observability/` | Wrapper dan decorator klien Langfuse self-hosted untuk mencatat latency, token usage, estimasi biaya, dan graph traces setiap eksekusi node agent. | Tidak boleh memblokir jalannya alur utama aplikasi jika server Langfuse mengalami downtime (fail-safe). |
+| `services/api/app/evaluation/` | Evaluation sampling eksplisit: citation match, ranked ID context precision, Hit@K, abstention, latency gate, serta Muse/OpenCode judge untuk faithfulness dan answer correctness saat ground truth tersedia. | Tidak boleh menyebut skor judge sebagai probabilitas kebenaran atau mengarang measured result tanpa run tersimpan. |
+| `services/api/app/observability/` | Trace ID, latency node, audit event PostgreSQL, JSONL teredaksi, dan ekspor opsional melalui Langfuse Python SDK v4. | Tidak boleh memblokir alur utama jika Langfuse down; token/cost tetap null bila provider tidak melaporkannya. |
 | `services/api/tests/` | Kumpulan automated tests berbasis pytest: unit test modul ingestion, ocr, extraction, retrieval, agent, serta integration test API. | Dilarang memuat kredensial rahasia atau memanggil API eksternal berbayar secara live saat CI. |
 | `contracts/` | Definisi skema bersama antara frontend dan backend (OpenAPI specs, JSON schemas terstandarisasi untuk invoice, TypeScript type declarations). | Bebas dari implementasi runtime; hanya memuat kontrak skema. |
 | `datasets/samples/` | Kumpulan berkas invoice sintetis atau berlisensi publik bebas PII (PDF, JPG, PNG) untuk pengujian. | Dilarang keras menyimpan dokumen nyata perusahaan atau dokumen yang memuat data pribadi. |
@@ -172,17 +172,19 @@ Alur penalaran tanya jawab dikontrol oleh state graph LangGraph yang determinist
 - **Node `verify_citation`:** Memeriksa secara deterministik apakah nomor halaman dan kutipan teks yang dicantumkan benar-benar ada di dalam chunk referensi asli. Jika sitasi tidak valid, agen melakukan koreksi otomatis sebelum mengirim respons ke pengguna.
 
 ### 4.5 Observability (Langfuse Self-Hosted)
-Setiap pemanggilan model AI, pencarian konteks, dan transisi state LangGraph dibungkus oleh tracer Langfuse:
-- Mencatat latensi setiap node secara terpisah.
-- Menghitung jumlah token masukan (*prompt tokens*) dan token keluaran (*completion tokens*).
-- Menghitung estimasi biaya komputasi berdasarkan tarif model yang dikonfigurasi.
-- Menyediakan jejak eksekusi (*trace tree*) untuk keperluan debugging dan audit compliance.
+Setiap RAG run memiliki trace ID dan audit event internal yang tidak bergantung pada Langfuse:
+- Mencatat latensi setiap node dan total request.
+- Menyimpan event PostgreSQL serta JSONL yang telah melewati redaction.
+- Mengekspor trace agent ke Langfuse jika instance dan key dikonfigurasi.
+- Menyimpan token sebagai `null` bila OpenCode tidak melaporkan usage; biaya tidak dihitung tanpa data provider.
+- Memperlakukan kegagalan Langfuse sebagai non-blocking (`failed`) agar jawaban utama tetap tersedia.
 
 ### 4.6 Evaluation Framework
 Framework pengujian performa terintegrasi di `services/api/app/evaluation/`:
-- Menjalankan benchmark deterministik terhadap dataset ground-truth.
-- Menghitung metrik akurasi ekstraksi field dan ketepatan sitasi tanpa ketergantungan pada penilaian subjektif.
-- Menjalankan evaluasi Ragas (Faithfulness, Answer Correctness) secara berkala di lingkungan CI atau evaluasi terjadwal.
+- Menyimpan satu evaluation batch untuk RAG run yang dipilih pengguna dari halaman audit.
+- Menghitung citation match, ranked ID context precision, Hit@K, abstention correctness, dan latency gate secara deterministik.
+- Menjalankan Muse/OpenCode LLM-as-judge untuk faithfulness dan answer correctness opsional.
+- Memisahkan threshold rancangan dari measured result; baseline penuh tetap memerlukan dataset ground-truth nyata.
 
 ---
 
@@ -222,8 +224,8 @@ Arsitektur sistem menerapkan aturan arah ketergantungan (*dependency direction*)
 | **Database & Retriever** | PostgreSQL 16 Full-Text Search | Menyatukan metadata, chunk, indeks GIN, dan audit log tanpa model embedding lokal atau vector database tambahan. |
 | **RAG Componentry** | LangChain | Menyediakan recursive text splitter untuk chunking yang menjaga batas halaman dan tabel. |
 | **Agent Orchestration** | LangGraph | Menyediakan kontrol penuh terhadap siklus penalaran AI berbasis state graph terarah (*cyclic graph*), memungkinkan alur koreksi diri (*self-correction*), query rewrite, dan verifikasi sitasi yang terkontrol dan dapat diprediksi. |
-| **Evaluasi AI** | Ragas + Custom Deterministic Metrics | Menggabungkan metrik standar industri untuk evaluasi RAG (faithfulness, context precision/recall) dengan metrik eksak deterministik buatan sendiri (CER, WER, exact field matching, math validation). |
-| **Observability Platform** | Langfuse (Self-Hosted) | Platform observabilitas open-source khusus untuk aplikasi LLM dan agen AI. Dapat di-host mandiri via Docker untuk menjaga kerahasiaan data finansial perusahaan, menyediakan trace menyeluruh, dan tracking biaya/token secara rinci. |
+| **Evaluasi AI** | Custom Deterministic Metrics + Muse Judge | Metrik eksak tidak memerlukan LLM; semantic faithfulness/correctness memakai structured judge melalui provider online yang sama. Ragas 0.4.3 dikeluarkan setelah konflik dependency terverifikasi agar tidak merusak LangGraph runtime. |
+| **Observability Platform** | Internal Audit + Langfuse Exporter | PostgreSQL/JSONL menyediakan audit minimum yang selalu aktif. Langfuse dapat di-host mandiri dan menerima agent trace saat key tersedia; token/cost tidak diestimasi tanpa usage resmi provider. |
 | **Penyimpanan Berkas** | Local Filesystem Storage | Menjaga kesederhanaan arsitektur tahap MVP tanpa ketergantungan pada layanan cloud storage berbayar (AWS S3/GCS); dienkapsulasi dalam antarmuka storage adapter sehingga mudah dimigrasi ke S3 di masa mendatang. |
 | **Kontainerisasi** | Docker & Docker Compose | Menjamin konsistensi environment untuk PostgreSQL, aplikasi, dan server Langfuse. |
 | **Testing Framework** | pytest & pytest-asyncio | Standar de-facto pengujian di ekosistem Python, mendukung pengujian asinkronus untuk endpoint FastAPI dan pipeline AI. |

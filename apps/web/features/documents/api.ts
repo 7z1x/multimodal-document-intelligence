@@ -1,9 +1,11 @@
 import type {
   AgentResponse,
   ApiErrorPayload,
+  AuditEvent,
   DocumentRecord,
   IndexResult,
   InvoiceExtraction,
+  EvaluationBatch,
   RagRun,
 } from "./types";
 
@@ -58,4 +60,37 @@ export async function getRagRuns(documentId: string): Promise<RagRun[]> {
     cache: "no-store",
   });
   return parseResponse<RagRun[]>(response, "Riwayat audit gagal dimuat");
+}
+
+export async function evaluateRagRun(
+  documentId: string,
+  ragRunId: string,
+  referenceAnswer?: string,
+): Promise<EvaluationBatch> {
+  const response = await fetch(
+    `${API_URL}/api/v1/documents/${documentId}/rag-runs/${ragRunId}/evaluate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reference_answer: referenceAnswer?.trim() || null,
+        include_llm_judge: true,
+      }),
+    },
+  );
+  return parseResponse<EvaluationBatch>(response, "Evaluasi RAG gagal dijalankan");
+}
+
+export async function getEvaluations(documentId: string): Promise<EvaluationBatch[]> {
+  const response = await fetch(`${API_URL}/api/v1/documents/${documentId}/evaluations`, {
+    cache: "no-store",
+  });
+  return parseResponse<EvaluationBatch[]>(response, "Hasil evaluasi gagal dimuat");
+}
+
+export async function getTraceEvents(documentId: string): Promise<AuditEvent[]> {
+  const response = await fetch(`${API_URL}/api/v1/documents/${documentId}/trace-events`, {
+    cache: "no-store",
+  });
+  return parseResponse<AuditEvent[]>(response, "Trace observability gagal dimuat");
 }

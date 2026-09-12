@@ -7,8 +7,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 ## Status Project
 
 > [!IMPORTANT]
-> **Status: Stage 12 — Reranked, Grounded, and Citation-Verified RAG**
-> Intake, parsing/OCR, structured extraction, full-text retrieval, Muse Spark reranking/generation, bounded LangGraph agent, deterministic citation verification, audit persistence, API, dan UI sudah diimplementasikan. Evaluation runtime dan observability Langfuse masih tahap berikutnya.
+> **Status: Stage 14 — Evaluated and Observable Agentic RAG**
+> Seluruh pipeline Stage 1–14 sudah diimplementasikan: intake, OCR/extraction, retrieval, reranking, grounded generation, verifikasi sitasi, evaluation sampling, audit log teredaksi, dan ekspor Langfuse fail-safe.
 
 ### Yang sudah diverifikasi
 
@@ -26,19 +26,22 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - LangGraph workflow terbatas: query rewrite, retrieval, Muse Spark reranking, sufficiency gate, generation, verifikasi sitasi, maksimal dua attempt, lalu abstain aman.
 - Audit menyimpan retrieval score, rerank score, final relevance, citation support score, error verifikasi, latency, dan node trace.
 - UI tanya jawab, verified citations, score breakdown, serta halaman audit `/audit/{document_id}`.
+- Evaluation batch dengan citation match, ID-ranked context precision, Hit@K, abstention correctness, latency gate, serta Muse LLM-as-judge untuk faithfulness dan answer correctness opsional.
+- Structured trace event, trace ID per RAG run, latency setiap node, JSONL audit log teredaksi, dan exporter Langfuse SDK v4 yang tidak memblokir pipeline ketika dinonaktifkan/down.
 - Frontend lint, TypeScript type-check, dan production build.
-- Backend Ruff, MyPy, 22 automated tests, dan migration SQL preview.
+- Backend Ruff, MyPy, 27 automated tests, dan migration PostgreSQL sampai `20260912_0005 (head)`.
 
 ### Batas verifikasi saat ini
 
-- PostgreSQL terdeteksi pada port lokal 5432, tetapi migration project belum diterapkan karena kredensial development `mdi` belum tersedia (`InvalidPasswordError`). Docker Desktop/Compose juga tidak tersedia pada environment pemeriksaan.
+- PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. Docker Desktop/Compose belum tersedia pada environment pemeriksaan.
 - Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi pada CPU Windows: 5 blok teks terbaca dengan confidence rata-rata `0.9882` pada invoice sintetis. Cold start setelah model tercache sekitar 75 detik; benchmark dataset/p95 belum tersedia.
 - PaddlePaddle 3.3.1 CPU mengalami regresi oneDNN/PIR pada environment ini. Adapter menonaktifkan MKL-DNN dan modul formula/chart/seal yang tidak diperlukan invoice; inferensi kemudian berhasil.
 - Jawaban RAG membutuhkan `opencode serve` dan akses internet. Muse Spark berjalan online; tidak ada model LLM/embedding yang dimuat di laptop.
 - Teks pertanyaan dan chunk relevan dikirim ke provider OpenCode, sehingga dokumen sensitif memerlukan persetujuan pengguna dan pemeriksaan kebijakan provider.
 - Baseline heuristik belum mengekstrak line item kompleks; gunakan backend OpenCode untuk layout invoice yang bervariasi.
-- Live PostgreSQL belum diuji karena kredensial development lokal masih ditolak; migration SQL dan query contract tersedia.
-- Evaluation runtime, Ragas benchmark, dan Langfuse belum diimplementasikan.
+- Token/cost tetap `not reported` jika provider OpenCode tidak mengirim metadata usage; sistem tidak mengarang nilainya.
+- Ragas `0.4.3` tidak dipakai pada runtime karena konflik aktual dengan `langchain-community 0.4.2`; metrik deterministik dihitung internal dan semantic judge memakai Muse/OpenCode. Benchmark dataset penuh tetap belum dijalankan.
+- Ekspor Langfuse tersedia tetapi default nonaktif sampai instance, public key, dan secret key valid dikonfigurasi. Audit database dan JSONL tetap aktif tanpa Langfuse.
 
 ---
 
@@ -50,7 +53,7 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - **Grounded Document RAG:** Tanya jawab invoice tunggal menggunakan LangChain chunking, PostgreSQL full-text retrieval, dan Muse Spark melalui OpenCode.
 - **Sitasi Terverifikasi (Verifiable Citations):** Penyajian nomor halaman dan potongan teks bukti asli dokumen untuk setiap klaim jawaban.
 - **Agentic Workflow dengan LangGraph:** State machine untuk penulisan ulang kueri (query rewrite), retrieval ulang saat konteks tidak mencukupi, dan verifikasi sitasi otomatis.
-- **Observabilitas Menyeluruh:** Pelacakan latency, jumlah token, dan estimasi biaya per pemanggilan melalui Langfuse self-hosted.
+- **Observabilitas Fail-Safe:** Trace ID, latency node, audit PostgreSQL/JSONL teredaksi, dan ekspor opsional ke Langfuse; token/cost hanya dicatat bila provider melaporkannya.
 - **Pipeline Evaluasi Ganda:** Pengujian performa komprehensif memisahkan metrik deterministik (CER, WER, Hit@K, Exact Match) dan metrik LLM-as-judge (Faithfulness, Answer Correctness).
 
 ---
@@ -73,8 +76,8 @@ multimodal-document-intelligence/
 │       │   ├── retrieval/     # Chunking & PostgreSQL full-text retrieval
 │       │   ├── generation/    # Prompt templates & sintesis jawaban bersitasi
 │       │   ├── agents/        # LangGraph state machine & verification nodes
-│       │   ├── evaluation/    # Metric runners (deterministik & Ragas)
-│       │   └── observability/ # Tracing decorator & klien Langfuse
+│       │   ├── evaluation/    # Metric runners deterministik & Muse judge
+│       │   └── observability/ # Redacted audit log & klien Langfuse
 │       └── tests/             # Automated test suite (pytest)
 ├── contracts/                 # Skema kontrak API & interface bersama
 ├── datasets/
@@ -110,6 +113,8 @@ Spesifikasi teknis lengkap telah didokumentasikan secara terperinci dalam berkas
    *Evaluation Plan & Benchmarks:* Definisi metrik deterministik (CER, WER, Hit@K, Citation Accuracy, Latency, Cost) versus LLM-as-judge (Faithfulness, Answer Correctness), tanpa angka pengujian palsu.
 5. [docs/SECURITY.md](docs/SECURITY.md)
    *Security Model & Policies:* Kebijakan verifikasi magic bytes, batas ukuran berkas & halaman, pencegahan path traversal, isolasi upload, proteksi indirect prompt injection, dan log data scrubbing.
+6. [docs/LANGFUSE_SETUP.md](docs/LANGFUSE_SETUP.md)
+   *Observability Setup:* Cara mengaktifkan exporter Langfuse tanpa memasukkan secret ke Git dan batas verifikasi status trace.
 
 ---
 
@@ -140,14 +145,19 @@ pnpm --filter web dev
 
 Default `EXTRACTION_BACKEND=heuristic` berjalan tanpa LLM. Untuk ekstraksi invoice melalui Muse Spark, ubah menjadi `EXTRACTION_BACKEND=opencode`. Agent RAG selalu menggunakan model `opencode/muse-spark-1.3-contributor-free` dari server OpenCode. Semua coding tools dinonaktifkan pada session inference aplikasi.
 
-Alur API Stage 8–12:
+Alur API Stage 8–14:
 
 ```text
 POST /api/v1/documents/{id}/index
 POST /api/v1/documents/{id}/search
 POST /api/v1/documents/{id}/ask
 GET  /api/v1/documents/{id}/rag-runs
+POST /api/v1/documents/{id}/rag-runs/{run_id}/evaluate
+GET  /api/v1/documents/{id}/evaluations
+GET  /api/v1/documents/{id}/trace-events
 ```
+
+Langfuse bersifat opsional. Aktifkan `LANGFUSE_ENABLED=true` dan isi key project serta `LANGFUSE_BASE_URL` pada `.env` lokal. Tanpa konfigurasi tersebut, trace tetap disimpan pada PostgreSQL dan `storage/audit-logs/*.jsonl` dengan email, nomor panjang, token, password, dan secret disensor.
 
 Pemeriksaan project:
 
