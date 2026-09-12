@@ -38,3 +38,11 @@ class GeneratedAnswer(BaseModel):
         if len(value) > 8_000:
             raise ValueError("answer must not exceed 8000 characters")
         return value
+
+
+class CitationVerification(BaseModel):
+    valid: bool
+    total_citations: int = Field(ge=0)
+    supported_citations: int = Field(ge=0)
+    support_score: float = Field(ge=0, le=1)
+    errors: list[str] = Field(default_factory=list)

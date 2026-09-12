@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Implemented Through Grounded Agent Generation and Citation Audit; Reranking, Evaluation, and Observability Pending
+Implemented Through Stage 12 Reranking, Grounded Generation, and Citation Verification
 
 ---
 
@@ -165,37 +165,36 @@ flowchart TD
 ---
 
 ### Tahap 10: Reranking
-- **Deskripsi:** Tahap opsional masa depan untuk memberi skor ulang kandidat full-text dengan reranker online.
+- **Deskripsi:** Muse Spark melalui OpenCode memberi skor ulang seluruh kandidat full-text. Semua tool OpenCode dimatikan dan ID hasil diverifikasi terhadap kandidat asli.
 - **Input:** Query pengguna dan top-K chunk kandidat dari Tahap 9.
 - **Output:** Daftar chunk terurut ulang (*reranked chunks*) berdasarkan relevansi semantik tertinggi.
 - **Kemungkinan Gagal:**
-  - Latensi tambahan jika model reranker berukuran besar diproses pada CPU.
-  - Format output skor reranker tidak valid atau bernilai null.
-- **Data yang Disimpan:** Skor reranking per chunk disimpan di trace Langfuse untuk analisis perbandingan relevansi retrieval.
+  - Server OpenCode tidak aktif atau layanan Muse Spark tidak tersedia.
+  - Model mengembalikan ID asing, duplikat, daftar tidak lengkap, atau skor tidak valid.
+- **Data yang Disimpan:** Retrieval score, rerank score, dan final weighted relevance disimpan pada `rag_runs.retrieval_trace`.
 
 ---
 
 ### Tahap 11: Answer Generation
-- **Deskripsi:** LLM menyintesis jawaban yang lugas dan tepat berdasarkan konteks yang ditarik dari dokumen. Jika konteks tidak memuat jawaban, model wajib melakukan abstention ("Data tidak tercantum dalam dokumen"). Setiap klaim fakta wajib dilampiri penanda sitasi `[Hal X: "Kutipan"]`.
+- **Deskripsi:** Muse Spark menyintesis jawaban hanya dari chunk hasil reranking. Jika bukti tidak cukup, model wajib mengembalikan `can_answer=false`. Sitasi dikembalikan sebagai JSON terstruktur.
 - **Input:** Prompt sistem yang ketat, pertanyaan pengguna, dan teks dari chunk hasil reranking.
 - **Output:** Teks jawaban sementara beserta daftar sitasi terstruktur (nomor halaman dan kutipan teks rujukan).
 - **Kemungkinan Gagal:**
   - Model berhalusinasi informasi di luar konteks yang diberikan.
   - Model gagal menyertakan format sitasi yang diminta (*citation syntax error*).
   - *Context window limit* terlampaui jika jumlah chunk terlalu besar.
-- **Data yang Disimpan:** Respons mentah LLM disimpan pada state graph LangGraph.
+- **Data yang Disimpan:** Jawaban tervalidasi Pydantic disimpan pada state LangGraph dan audit `rag_runs`.
 
 ---
 
 ### Tahap 12: Citation Verification (Verifikasi Sitasi Deterministik)
 - **Deskripsi:** Node pemeriksa pada LangGraph memverifikasi secara deterministik apakah kutipan teks yang dicantumkan oleh model benar-benar terdapat pada halaman dokumen yang dirujuk.
-- **Input:** Teks jawaban, daftar sitasi (halaman dan teks kutipan), dan teks asli halaman terkait dari database `document_pages`.
-- **Output:** Status verifikasi (`is_verified: true/false`), daftar sitasi yang valid, dan koreksi jawaban jika ada sitasi yang salah.
+- **Input:** Jawaban, daftar sitasi terstruktur, dan chunk hasil reranking.
+- **Output:** Boolean verifikasi, jumlah sitasi valid/total, citation support score, dan daftar error terstruktur.
 - **Kemungkinan Gagal:**
-  - Model melakukan paraphrase pada kutipan teks sehingga pencarian exact string match gagal (ditangani dengan normalisasi spasi dan toleransi fuzzy matching terkontrol).
+  - Model melakukan paraphrase sehingga kutipan gagal exact-match setelah normalisasi spasi/case.
   - Model merujuk ke nomor halaman yang tidak ada dalam dokumen.
-- **Data yang Disimpan:**
-  - Riwayat tanya jawab tersimpan pada tabel `chat_messages` (id, session_id, document_id, role, content, citations_json, is_citation_verified, created_at).
+- **Data yang Disimpan:** Hasil tersimpan di `rag_runs` bersama `citations`, `citation_support_score`, `citation_errors`, dan node steps.
 
 ---
 

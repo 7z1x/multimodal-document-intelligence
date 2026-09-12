@@ -63,6 +63,17 @@ export function AuditHistory({ documentId }: { documentId: string }) {
               </div>
               <h2 className="mt-4 font-semibold">{run.question}</h2>
               <p className="mt-2 text-sm leading-6 text-[#435047]">{run.answer}</p>
+              <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
+                <div className="rounded-lg bg-[#f7f5ef] p-3">
+                  Citation support: {(run.citation_support_score * 100).toFixed(0)}%
+                </div>
+                <div className="rounded-lg bg-[#f7f5ef] p-3">
+                  Retrieved: {run.retrieval_trace.length}
+                </div>
+                <div className="rounded-lg bg-[#f7f5ef] p-3">
+                  Reranked: {run.retrieval_trace.filter((item) => item.rerank_score !== null).length}
+                </div>
+              </div>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#6d776f]">
@@ -74,6 +85,11 @@ export function AuditHistory({ documentId }: { documentId: string }) {
                   <p className="mt-2 text-[11px] text-[#6d776f]">
                     Retrieved chunks: {run.retrieved_chunk_ids.length}
                   </p>
+                  {run.citation_errors.length ? (
+                    <p className="mt-2 text-[11px] text-[#9a3e2d]">
+                      Verification: {run.citation_errors.join(", ")}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#6d776f]">

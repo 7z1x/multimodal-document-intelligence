@@ -19,6 +19,8 @@ class RetrievedChunk(BaseModel):
     chunk_index: int
     chunk_type: Literal["text", "table"]
     content: str
+    retrieval_score: float = Field(ge=0, le=1)
+    rerank_score: float | None = Field(default=None, ge=0, le=1)
     relevance_score: float = Field(ge=0, le=1)
 
 

@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Stage 9 Grounded Agentic RAG Implemented, Evaluation and Observability Planned
+Approved Baseline; Stage 12 Reranking, Generation, and Citation Verification Implemented
 
 ---
 
@@ -166,6 +166,7 @@ Setelah teks mentah dan tabel diperoleh, sistem memetakan informasi dokumen ke s
 Alur penalaran tanya jawab dikontrol oleh state graph LangGraph yang deterministik:
 - **Node `rewrite_query`:** Memperbaiki formulasi pertanyaan pengguna agar selaras dengan terminologi faktur (misal: "Berapa potongan harganya?" diubah menjadi "Berapa nominal atau persentase diskon yang tercantum pada invoice?").
 - **Node `retrieve_context`:** Menarik top-K chunk relevan dari indeks full-text untuk dokumen aktif.
+- **Node `rerank`:** Muse Spark menilai ulang semua kandidat. Adapter menolak ID asing/duplikat, lalu menggabungkan skor retrieval dan skor model secara deterministik.
 - **Node `evaluate_sufficiency`:** Memeriksa apakah chunk yang ditarik memuat informasi yang cukup untuk menjawab pertanyaan. Jika tidak memadai, memicu ekspansi query atau pencarian fallback.
 - **Node `generate_answer`:** Menyusun respons faktual berdasarkan konteks yang ditarik, lengkap dengan referensi sitasi.
 - **Node `verify_citation`:** Memeriksa secara deterministik apakah nomor halaman dan kutipan teks yang dicantumkan benar-benar ada di dalam chunk referensi asli. Jika sitasi tidak valid, agen melakukan koreksi otomatis sebelum mengirim respons ke pengguna.

@@ -76,7 +76,17 @@ export interface RetrievedChunk {
   chunk_index: number;
   chunk_type: "text" | "table";
   content: string;
+  retrieval_score: number;
+  rerank_score: number | null;
   relevance_score: number;
+}
+
+export interface RetrievalTraceItem {
+  chunk_id: string;
+  page_number: number;
+  retrieval_score: number;
+  rerank_score: number | null;
+  final_relevance_score: number;
 }
 
 export interface AgentResponse {
@@ -88,10 +98,13 @@ export interface AgentResponse {
   citations: Citation[];
   status: "answered" | "abstained";
   is_citation_verified: boolean;
+  citation_support_score: number;
+  citation_errors: string[];
   attempts: number;
   latency_ms: number;
   steps: AgentStep[];
   retrieved_chunks: RetrievedChunk[];
+  retrieval_trace: RetrievalTraceItem[];
 }
 
 export interface RagRun {
@@ -104,7 +117,10 @@ export interface RagRun {
   steps: AgentStep[];
   status: "answered" | "abstained";
   is_citation_verified: boolean;
+  citation_support_score: number;
+  citation_errors: string[];
   latency_ms: number;
   retrieved_chunk_ids: string[];
+  retrieval_trace: RetrievalTraceItem[];
   created_at: string;
 }

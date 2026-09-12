@@ -1,6 +1,7 @@
 import json
 import uuid
 from pathlib import Path
+from typing import cast
 
 import httpx
 import pytest
@@ -9,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.service import AgenticRagService
 from app.documents.models import Document, DocumentStatus
 from app.documents.page_models import DocumentPage
-from app.generation.citations import verify_citations
+from app.generation.citations import verify_citation_support, verify_citations
 from app.generation.schemas import Citation, GeneratedAnswer
 from app.providers.opencode import OpenCodeStructuredClient
+from app.reranking.opencode import OpenCodeReranker
 from app.retrieval.chunking import PageAwareChunker
 from app.retrieval.repository import PostgresTextChunkRepository
 from app.retrieval.schemas import ChunkDraft, RetrievedChunk
@@ -55,6 +57,27 @@ class FakeRetriever:
         return self.chunks[:limit]
 
 
+class FakeReranker:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def rerank(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+    ) -> list[RetrievedChunk]:
+        self.calls += 1
+        return [
+            chunk.model_copy(
+                update={
+                    "rerank_score": chunk.relevance_score,
+                    "relevance_score": chunk.relevance_score,
+                }
+            )
+            for chunk in contexts
+        ]
+
+
 class FakeRagModel:
     def __init__(self, answer: GeneratedAnswer | None = None) -> None:
         self.answer = answer
@@ -93,6 +116,7 @@ def make_chunk(document_id: uuid.UUID, *, relevance_score: float = 0.91) -> Retr
         chunk_index=0,
         chunk_type="text",
         content="Invoice Number: INV-900. Grand Total: Rp 110.000,00.",
+        retrieval_score=relevance_score,
         relevance_score=relevance_score,
     )
 
@@ -202,6 +226,45 @@ async def test_opencode_client_disables_tools_and_validates_json() -> None:
 
 
 @pytest.mark.asyncio
+async def test_opencode_reranker_reorders_and_preserves_retrieval_score() -> None:
+    document_id = uuid.uuid4()
+    first = make_chunk(document_id, relevance_score=0.9)
+    second = make_chunk(document_id, relevance_score=0.2).model_copy(
+        update={"id": uuid.uuid4(), "chunk_index": 1}
+    )
+
+    class FakeRankingClient:
+        async def generate(self, schema: type[object], **_: object) -> object:
+            return schema.model_validate(  # type: ignore[attr-defined,no-any-return]
+                {
+                    "rankings": [
+                        {
+                            "chunk_id": str(first.id),
+                            "relevance_score": 0.1,
+                            "rationale": "Does not answer the question",
+                        },
+                        {
+                            "chunk_id": str(second.id),
+                            "relevance_score": 0.95,
+                            "rationale": "Contains the requested evidence",
+                        },
+                    ]
+                }
+            )
+
+    reranker = OpenCodeReranker(
+        cast(OpenCodeStructuredClient, FakeRankingClient()),
+        model_weight=0.65,
+    )
+    results = await reranker.rerank("What is the requested evidence?", [first, second])
+
+    assert [item.id for item in results] == [second.id, first.id]
+    assert results[0].retrieval_score == 0.2
+    assert results[0].rerank_score == 0.95
+    assert results[0].relevance_score == pytest.approx(0.6875)
+
+
+@pytest.mark.asyncio
 async def test_indexing_service_builds_chunks_and_marks_document_indexed(
     session: AsyncSession,
 ) -> None:
@@ -252,6 +315,9 @@ def test_citation_verifier_checks_chunk_page_and_exact_quote() -> None:
         }
     )
     assert verify_citations(invalid, [chunk]) is False
+    verification = verify_citation_support(invalid, [chunk])
+    assert verification.support_score == 0
+    assert verification.errors == ["citation_0:page_mismatch"]
 
 
 @pytest.mark.asyncio
@@ -268,6 +334,7 @@ async def test_agent_answers_only_after_citation_verification(session: AsyncSess
     service = AgenticRagService(
         session=session,
         retriever=FakeRetriever([chunk]),
+        reranker=FakeReranker(),
         model=model,
         top_k=5,
         min_relevance=0.15,
@@ -278,10 +345,14 @@ async def test_agent_answers_only_after_citation_verification(session: AsyncSess
 
     assert result.status == "answered"
     assert result.is_citation_verified is True
+    assert result.citation_support_score == 1
+    assert result.citation_errors == []
+    assert result.retrieval_trace[0].rerank_score == pytest.approx(0.91)
     assert result.attempts == 1
     assert [step.node for step in result.steps] == [
         "rewrite",
         "retrieve",
+        "rerank",
         "evaluate_context",
         "generate",
         "verify_citations",
@@ -298,6 +369,7 @@ async def test_agent_retries_then_abstains_on_insufficient_context(
     service = AgenticRagService(
         session=session,
         retriever=retriever,
+        reranker=FakeReranker(),
         model=model,
         top_k=5,
         min_relevance=0.15,
@@ -333,6 +405,7 @@ async def test_agent_rejects_unsupported_quote_then_abstains(session: AsyncSessi
     service = AgenticRagService(
         session=session,
         retriever=FakeRetriever([chunk]),
+        reranker=FakeReranker(),
         model=model,
         top_k=5,
         min_relevance=0.15,
@@ -356,6 +429,7 @@ async def test_agent_ask_persists_readable_audit_run(session: AsyncSession) -> N
     service = AgenticRagService(
         session=session,
         retriever=FakeRetriever([chunk]),
+        reranker=FakeReranker(),
         model=FakeRagModel(
             GeneratedAnswer(
                 can_answer=True,
@@ -381,4 +455,7 @@ async def test_agent_ask_persists_readable_audit_run(session: AsyncSession) -> N
     assert len(runs) == 1
     assert runs[0].id == response.run_id
     assert runs[0].citations[0].page_number == 1
+    assert runs[0].citation_support_score == 1
+    assert runs[0].citation_errors == []
+    assert runs[0].retrieval_trace[0].rerank_score == pytest.approx(0.91)
     assert runs[0].steps[-1].node == "verify_citations"

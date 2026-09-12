@@ -10,6 +10,7 @@ from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.generation.opencode import OpenCodeRagModel
 from app.providers.opencode import OpenCodeStructuredClient
+from app.reranking.opencode import OpenCodeReranker
 from app.retrieval.repository import PostgresTextChunkRepository
 from app.retrieval.service import TextRetriever
 
@@ -31,6 +32,10 @@ def get_agent_service(
     return AgenticRagService(
         session=session,
         retriever=TextRetriever(repository=repository),
+        reranker=OpenCodeReranker(
+            client,
+            model_weight=settings.rag_rerank_model_weight,
+        ),
         model=OpenCodeRagModel(client),
         top_k=settings.rag_top_k,
         min_relevance=settings.rag_min_relevance,

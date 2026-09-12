@@ -18,6 +18,14 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=2_000)
 
 
+class RetrievalTraceItem(BaseModel):
+    chunk_id: uuid.UUID
+    page_number: int
+    retrieval_score: float
+    rerank_score: float | None
+    final_relevance_score: float
+
+
 class AgentResponse(BaseModel):
     run_id: uuid.UUID | None = None
     document_id: uuid.UUID
@@ -27,10 +35,13 @@ class AgentResponse(BaseModel):
     citations: list[Citation]
     status: Literal["answered", "abstained"]
     is_citation_verified: bool
+    citation_support_score: float
+    citation_errors: list[str]
     attempts: int
     latency_ms: int
     steps: list[AgentStep]
     retrieved_chunks: list[RetrievedChunk]
+    retrieval_trace: list[RetrievalTraceItem]
 
 
 class RagRunRead(BaseModel):
@@ -45,6 +56,9 @@ class RagRunRead(BaseModel):
     steps: list[AgentStep]
     status: Literal["answered", "abstained"]
     is_citation_verified: bool
+    citation_support_score: float
+    citation_errors: list[str]
     latency_ms: int
     retrieved_chunk_ids: list[str]
+    retrieval_trace: list[RetrievalTraceItem]
     created_at: datetime

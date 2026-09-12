@@ -8,12 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.models import RagRun
-from app.agents.schemas import AgentResponse, AgentStep, RagRunRead
+from app.agents.schemas import AgentResponse, AgentStep, RagRunRead, RetrievalTraceItem
 from app.core.exceptions import AppError
 from app.documents.models import Document, DocumentStatus
 from app.generation.base import RagModel
-from app.generation.citations import verify_citations
-from app.generation.schemas import GeneratedAnswer
+from app.generation.citations import verify_citation_support
+from app.generation.schemas import CitationVerification, GeneratedAnswer
+from app.reranking.base import Reranker
 from app.retrieval.base import Retriever
 from app.retrieval.schemas import RetrievedChunk
 
@@ -27,6 +28,7 @@ class AgentState(TypedDict, total=False):
     sufficient: bool
     generated: GeneratedAnswer
     citation_verified: bool
+    citation_verification: CitationVerification
     steps: list[AgentStep]
 
 
@@ -36,6 +38,7 @@ class AgenticRagService:
         *,
         session: AsyncSession,
         retriever: Retriever,
+        reranker: Reranker,
         model: RagModel,
         top_k: int,
         min_relevance: float,
@@ -43,6 +46,7 @@ class AgenticRagService:
     ) -> None:
         self.session = session
         self.retriever = retriever
+        self.reranker = reranker
         self.model = model
         self.top_k = top_k
         self.min_relevance = min_relevance
@@ -55,6 +59,7 @@ class AgenticRagService:
         builder = StateGraph(AgentState)
         builder.add_node("rewrite", self._rewrite)
         builder.add_node("retrieve", self._retrieve)
+        builder.add_node("rerank", self._rerank)
         builder.add_node("evaluate_context", self._evaluate_context)
         builder.add_node("prepare_retry", self._prepare_retry)
         builder.add_node("generate", self._generate)
@@ -62,7 +67,8 @@ class AgenticRagService:
         builder.add_node("abstain", self._abstain)
         builder.add_edge(START, "rewrite")
         builder.add_edge("rewrite", "retrieve")
-        builder.add_edge("retrieve", "evaluate_context")
+        builder.add_edge("retrieve", "rerank")
+        builder.add_edge("rerank", "evaluate_context")
         builder.add_conditional_edges(
             "evaluate_context",
             self._route_after_evaluation,
@@ -101,8 +107,11 @@ class AgenticRagService:
             citations=[citation.model_dump(mode="json") for citation in response.citations],
             steps=[step.model_dump(mode="json") for step in response.steps],
             retrieved_chunk_ids=[str(chunk.id) for chunk in response.retrieved_chunks],
+            retrieval_trace=[item.model_dump(mode="json") for item in response.retrieval_trace],
             status=response.status,
             is_citation_verified=response.is_citation_verified,
+            citation_support_score=response.citation_support_score,
+            citation_errors=response.citation_errors,
             latency_ms=response.latency_ms,
         )
         self.session.add(run)
@@ -123,7 +132,17 @@ class AgenticRagService:
             await self.graph.ainvoke(initial, {"recursion_limit": self.max_attempts * 8 + 4}),
         )
         generated = final["generated"]
-        verified = final.get("citation_verified", False)
+        verification = final.get(
+            "citation_verification",
+            CitationVerification(
+                valid=False,
+                total_citations=0,
+                supported_citations=0,
+                support_score=0,
+                errors=["citation_verification_not_completed"],
+            ),
+        )
+        verified = verification.valid
         status: Literal["answered", "abstained"] = (
             "answered" if generated.can_answer and verified else "abstained"
         )
@@ -135,10 +154,13 @@ class AgenticRagService:
             citations=generated.citations if status == "answered" else [],
             status=status,
             is_citation_verified=verified if status == "answered" else False,
+            citation_support_score=verification.support_score,
+            citation_errors=verification.errors,
             attempts=final.get("attempt", 0) + 1,
             latency_ms=round((perf_counter() - started) * 1000),
             steps=final.get("steps", []),
             retrieved_chunks=final.get("contexts", []),
+            retrieval_trace=self._retrieval_trace(final.get("contexts", [])),
         )
 
     async def runs(self, document_id: uuid.UUID) -> list[RagRunRead]:
@@ -170,6 +192,20 @@ class AgenticRagService:
         return {
             "contexts": contexts,
             "steps": self._step(state, "retrieve", "ok", f"chunks={len(contexts)}"),
+        }
+
+    async def _rerank(self, state: AgentState) -> AgentState:
+        contexts = state.get("contexts", [])
+        reranked = await self.reranker.rerank(state["question"], contexts)
+        top_score = reranked[0].relevance_score if reranked else 0.0
+        return {
+            "contexts": reranked,
+            "steps": self._step(
+                state,
+                "rerank",
+                "ok" if reranked else "skipped",
+                f"chunks={len(reranked)}, top_relevance={top_score:.4f}",
+            ),
         }
 
     async def _evaluate_context(self, state: AgentState) -> AgentState:
@@ -205,14 +241,21 @@ class AgenticRagService:
         }
 
     async def _verify_citations(self, state: AgentState) -> AgentState:
-        verified = verify_citations(state["generated"], state.get("contexts", []))
+        verification = verify_citation_support(
+            state["generated"],
+            state.get("contexts", []),
+        )
         return {
-            "citation_verified": verified,
+            "citation_verified": verification.valid,
+            "citation_verification": verification,
             "steps": self._step(
                 state,
                 "verify_citations",
-                "verified" if verified else "rejected",
-                "deterministic chunk, page, and quote check",
+                "verified" if verification.valid else "rejected",
+                (
+                    f"supported={verification.supported_citations}/"
+                    f"{verification.total_citations}, score={verification.support_score:.4f}"
+                ),
             ),
         }
 
@@ -231,6 +274,14 @@ class AgenticRagService:
         }
 
     async def _abstain(self, state: AgentState) -> AgentState:
+        previous = state.get("citation_verification")
+        verification = previous or CitationVerification(
+            valid=False,
+            total_citations=0,
+            supported_citations=0,
+            support_score=0,
+            errors=["agent_abstained_before_citation_verification"],
+        )
         return {
             "generated": GeneratedAnswer(
                 can_answer=False,
@@ -241,6 +292,7 @@ class AgenticRagService:
                 citations=[],
             ),
             "citation_verified": False,
+            "citation_verification": verification,
             "steps": self._step(
                 state,
                 "abstain",
@@ -257,3 +309,16 @@ class AgenticRagService:
         detail: str,
     ) -> list[AgentStep]:
         return [*state.get("steps", []), AgentStep(node=node, outcome=outcome, detail=detail)]
+
+    @staticmethod
+    def _retrieval_trace(contexts: list[RetrievedChunk]) -> list[RetrievalTraceItem]:
+        return [
+            RetrievalTraceItem(
+                chunk_id=chunk.id,
+                page_number=chunk.page_number,
+                retrieval_score=chunk.retrieval_score,
+                rerank_score=chunk.rerank_score,
+                final_relevance_score=chunk.relevance_score,
+            )
+            for chunk in contexts
+        ]

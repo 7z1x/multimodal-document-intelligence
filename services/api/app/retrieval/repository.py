@@ -104,6 +104,7 @@ class PostgresTextChunkRepository:
             chunk_index=chunk.chunk_index,
             chunk_type=cast(Literal["text", "table"], chunk.chunk_type),
             content=chunk.content,
+            retrieval_score=max(0.0, min(1.0, score)),
             relevance_score=max(0.0, min(1.0, score)),
         )
 

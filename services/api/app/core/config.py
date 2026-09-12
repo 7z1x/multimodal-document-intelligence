@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = Field(default=120, ge=0)
     rag_top_k: int = Field(default=5, ge=1, le=20)
     rag_min_relevance: float = Field(default=0.15, ge=0, le=1)
+    rag_rerank_model_weight: float = Field(default=0.65, ge=0, le=1)
     agent_max_retrieval_attempts: int = Field(default=2, ge=1, le=5)
     cors_origins: list[str] = ["http://localhost:3000"]
 

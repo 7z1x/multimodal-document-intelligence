@@ -49,7 +49,7 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a9c2af]">
-            Stage 8–9
+            Stage 8–12
           </p>
           <h4 className="mt-1 font-semibold">Grounded agentic RAG</h4>
         </div>
@@ -114,6 +114,21 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
           </div>
           <p className="text-sm leading-6 text-[#fffaf0]">{answer.answer}</p>
 
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-lg bg-white/5 p-3">
+              <p className="text-white/45">Citation support</p>
+              <p className="mt-1 text-lg font-semibold">
+                {(answer.citation_support_score * 100).toFixed(0)}%
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-3">
+              <p className="text-white/45">Reranked chunks</p>
+              <p className="mt-1 text-lg font-semibold">
+                {answer.retrieval_trace.filter((item) => item.rerank_score !== null).length}
+              </p>
+            </div>
+          </div>
+
           {answer.citations.length ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#a9c2af]">
@@ -156,7 +171,9 @@ export function RagWorkspace({ documentId }: RagWorkspaceProps) {
               {answer.retrieved_chunks.map((chunk) => (
                 <div className="border-t border-white/10 pt-2" key={chunk.id}>
                   <p className="text-white/45">
-                    Page {chunk.page_number} · relevance {chunk.relevance_score.toFixed(3)}
+                    Page {chunk.page_number} · retrieval {chunk.retrieval_score.toFixed(3)} ·
+                    rerank {chunk.rerank_score?.toFixed(3) ?? "n/a"} · final{" "}
+                    {chunk.relevance_score.toFixed(3)}
                   </p>
                   <p className="mt-1 line-clamp-4 leading-5 text-white/70">{chunk.content}</p>
                 </div>

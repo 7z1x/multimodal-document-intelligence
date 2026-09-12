@@ -7,8 +7,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 ## Status Project
 
 > [!IMPORTANT]
-> **Status: Stage 9 — Grounded Agentic RAG**
-> Intake, parsing/OCR, structured extraction, page-aware chunking, PostgreSQL full-text retrieval, OpenCode/Muse Spark generation, bounded LangGraph agent, deterministic citation verification, audit persistence, API, dan UI sudah diimplementasikan. Evaluation runtime dan observability Langfuse masih tahap berikutnya.
+> **Status: Stage 12 — Reranked, Grounded, and Citation-Verified RAG**
+> Intake, parsing/OCR, structured extraction, full-text retrieval, Muse Spark reranking/generation, bounded LangGraph agent, deterministic citation verification, audit persistence, API, dan UI sudah diimplementasikan. Evaluation runtime dan observability Langfuse masih tahap berikutnya.
 
 ### Yang sudah diverifikasi
 
@@ -23,10 +23,11 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - API process/pages/extraction dan UI ringkasan hasil invoice.
 - Recursive page/table-aware chunking menggunakan LangChain text splitters.
 - PostgreSQL full-text retrieval dengan GIN index, relevance score, fallback lexical portabel, dan isolasi wajib `document_id`.
-- LangGraph workflow terbatas: query rewrite, retrieval, sufficiency gate, generation, verifikasi sitasi, maksimal dua attempt, lalu abstain aman.
-- UI tanya jawab, verified citations, retrieved-context score, latency, node trace, serta halaman audit `/audit/{document_id}`.
+- LangGraph workflow terbatas: query rewrite, retrieval, Muse Spark reranking, sufficiency gate, generation, verifikasi sitasi, maksimal dua attempt, lalu abstain aman.
+- Audit menyimpan retrieval score, rerank score, final relevance, citation support score, error verifikasi, latency, dan node trace.
+- UI tanya jawab, verified citations, score breakdown, serta halaman audit `/audit/{document_id}`.
 - Frontend lint, TypeScript type-check, dan production build.
-- Backend Ruff, MyPy, 21 automated tests, dan migration SQL preview.
+- Backend Ruff, MyPy, 22 automated tests, dan migration SQL preview.
 
 ### Batas verifikasi saat ini
 
@@ -139,7 +140,7 @@ pnpm --filter web dev
 
 Default `EXTRACTION_BACKEND=heuristic` berjalan tanpa LLM. Untuk ekstraksi invoice melalui Muse Spark, ubah menjadi `EXTRACTION_BACKEND=opencode`. Agent RAG selalu menggunakan model `opencode/muse-spark-1.3-contributor-free` dari server OpenCode. Semua coding tools dinonaktifkan pada session inference aplikasi.
 
-Alur API Stage 8–9:
+Alur API Stage 8–12:
 
 ```text
 POST /api/v1/documents/{id}/index
