@@ -262,9 +262,9 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
 | Nama Metrik | Kategori Evaluasi | Metode Pengukuran | Bersifat Deterministik? | Measured Result | Provisional Target (initial engineering target — provisional, subject to baseline measurement) | Final Acceptance Threshold |
 |---|---|---|---|---|---|---|
 | **Character Error Rate (CER - Digital)** | OCR / Text | Levenshtein Character Distance | Ya (Deterministik) | not measured | CER <= 0.01 | CER <= 0.02 |
-| **Character Error Rate (CER - Scan Clean)**| OCR / Text | Levenshtein Character Distance | Ya (Deterministik) | not measured | CER <= 0.03 | CER <= 0.05 |
+| **Character Error Rate (CER - Scan Clean)**| OCR / Text | Levenshtein Character Distance | Ya (Deterministik) | 0.0000 (synthetic n=1) | CER <= 0.03 | CER <= 0.05 |
 | **Character Error Rate (CER - Scan Noisy)**| OCR / Text | Levenshtein Character Distance | Ya (Deterministik) | not measured | CER <= 0.08 | CER <= 0.12 |
-| **Word Error Rate (WER - Scan Clean)** | OCR / Text | Levenshtein Word Distance | Ya (Deterministik) | not measured | WER <= 0.05 | WER <= 0.08 |
+| **Word Error Rate (WER - Scan Clean)** | OCR / Text | Levenshtein Word Distance | Ya (Deterministik) | 0.0000 (synthetic n=1) | WER <= 0.05 | WER <= 0.08 |
 | **Word Error Rate (WER - Scan Noisy)** | OCR / Text | Levenshtein Word Distance | Ya (Deterministik) | not measured | WER <= 0.12 | WER <= 0.18 |
 | **Field Exact Match (EM)** | Structured Extraction | String Case-Sensitive Comparison | Ya (Deterministik) | 1.0000 (synthetic n=1) | EM >= 0.95 | EM >= 0.90 |
 | **Field Normalized Fuzzy Match** | Structured Extraction | Levenshtein Distance Normalized | Ya (Deterministik) | not measured | Score >= 0.90 | Score >= 0.82 |

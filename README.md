@@ -31,12 +31,12 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - Frontend lint, TypeScript type-check, dan production build.
 - Kontrak OpenAPI dan schema invoice ter-versioning serta diperiksa otomatis terhadap drift.
 - Backend Ruff, MyPy, 32 automated tests (termasuk PostgreSQL integration test), dan migration PostgreSQL sampai `20260912_0005 (head)`.
-- Baseline sintetis nyata pada PostgreSQL: field exact accuracy, mathematical validation, Hit@1/3/5, context precision, citation page accuracy, dan citation support semuanya `1.0` pada 1 invoice/3 query. Ini regression smoke kecil, bukan klaim performa produksi.
+- Baseline sintetis nyata pada PostgreSQL: field exact accuracy, mathematical validation, Hit@1/3/5, context precision, citation page accuracy, dan citation support semuanya `1.0` pada 1 invoice/3 query. Clean-scan PaddleOCR di GitHub Actions memperoleh CER/WER `0.0` dan confidence `0.9781` pada 1 sampel. Keduanya regression smoke kecil, bukan klaim performa produksi.
 
 ### Batas verifikasi saat ini
 
 - PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. Engine Docker lokal tidak aktif, tetapi fresh Compose build, migration, API health, dan web health sudah lulus di CI run `34703835790`.
-- Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi pada CPU Windows: 5 blok teks terbaca dengan confidence rata-rata `0.9882` pada invoice sintetis. Cold start setelah model tercache sekitar 75 detik; benchmark dataset/p95 belum tersedia.
+- Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi. Cloud benchmark clean-scan lulus pada run `34704232528` dengan cold-run sekitar 58 detik; noisy dataset dan p95 belum tersedia.
 - PaddlePaddle 3.3.1 CPU mengalami regresi oneDNN/PIR pada environment ini. Adapter menonaktifkan MKL-DNN dan modul formula/chart/seal yang tidak diperlukan invoice; inferensi kemudian berhasil.
 - Jawaban RAG membutuhkan `opencode serve` dan akses internet. Muse Spark berjalan online; tidak ada model LLM/embedding yang dimuat di laptop.
 - Teks pertanyaan dan chunk relevan dikirim ke provider OpenCode, sehingga dokumen sensitif memerlukan persetujuan pengguna dan pemeriksaan kebijakan provider.
@@ -119,6 +119,8 @@ Spesifikasi teknis lengkap telah didokumentasikan secara terperinci dalam berkas
    *Observability Setup:* Cara mengaktifkan exporter Langfuse tanpa memasukkan secret ke Git dan batas verifikasi status trace.
 7. [docs/BASELINE_RESULTS.md](docs/BASELINE_RESULTS.md)
    *Measured Baseline:* Hasil regression benchmark sintetis yang benar-benar dijalankan.
+8. [docs/OCR_BASELINE_RESULTS.md](docs/OCR_BASELINE_RESULTS.md)
+   *OCR Baseline:* CER/WER clean-scan dari PaddleOCR aktual yang dijalankan di GitHub Actions.
 
 ---
 

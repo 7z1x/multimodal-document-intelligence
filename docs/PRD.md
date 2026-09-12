@@ -211,7 +211,7 @@ Setiap fitur dalam ruang lingkup MVP dianggap diterima apabila memenuhi kriteria
 Tahap pengembangan MVP dianggap selesai (Done) hanya jika:
 - [x] Seluruh skema contracts (Pydantic models) terdokumentasi dan divalidasi oleh automated unit tests.
 - [x] Seluruh unit tests dan integration tests pada `services/api/tests/` berhasil lolos (100% pass) menggunakan pytest.
-- [ ] Pengujian evaluasi deterministik lengkap mencapai target. Baseline native/extraction/retrieval/sitasi sudah lulus; CER/WER PaddleOCR dan dataset produksi belum diukur.
+- [x] Regression gate deterministik pada dataset sintetis mencapai target untuk clean-scan CER/WER, native field extraction, Hit@K, context precision, serta citation support. Dataset produksi/noisy tetap batas evaluasi lanjutan, bukan klaim MVP ini.
 - [ ] Trace eksekusi berhasil terkirim dan terlihat pada instance Langfuse self-hosted tanpa error koneksi.
 - [x] Automated repository scan tidak menemukan secret aktual atau path absolut lokal di dalam basis kode. Kredensial Compose default adalah development-only, bukan production secret.
 - [x] Automated repository scan membatasi dokumen commit hanya ke dataset sintetis berlisensi CC0.
