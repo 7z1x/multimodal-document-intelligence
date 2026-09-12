@@ -35,7 +35,7 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 
 ### Batas verifikasi saat ini
 
-- PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. File Compose telah lolos validasi konfigurasi, tetapi engine Docker lokal tidak aktif; fresh container smoke dijalankan oleh CI.
+- PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. Engine Docker lokal tidak aktif, tetapi fresh Compose build, migration, API health, dan web health sudah lulus di CI run `34703835790`.
 - Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi pada CPU Windows: 5 blok teks terbaca dengan confidence rata-rata `0.9882` pada invoice sintetis. Cold start setelah model tercache sekitar 75 detik; benchmark dataset/p95 belum tersedia.
 - PaddlePaddle 3.3.1 CPU mengalami regresi oneDNN/PIR pada environment ini. Adapter menonaktifkan MKL-DNN dan modul formula/chart/seal yang tidak diperlukan invoice; inferensi kemudian berhasil.
 - Jawaban RAG membutuhkan `opencode serve` dan akses internet. Muse Spark berjalan online; tidak ada model LLM/embedding yang dimuat di laptop.

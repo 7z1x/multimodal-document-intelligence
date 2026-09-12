@@ -215,4 +215,4 @@ Tahap pengembangan MVP dianggap selesai (Done) hanya jika:
 - [ ] Trace eksekusi berhasil terkirim dan terlihat pada instance Langfuse self-hosted tanpa error koneksi.
 - [x] Automated repository scan tidak menemukan secret aktual atau path absolut lokal di dalam basis kode. Kredensial Compose default adalah development-only, bukan production secret.
 - [x] Automated repository scan membatasi dokumen commit hanya ke dataset sintetis berlisensi CC0.
-- [ ] Konfigurasi Docker Compose tervalidasi dan container smoke tersedia di CI; checkbox ditutup setelah fresh CI run lulus.
+- [x] Konfigurasi Docker Compose berhasil dibangun dari nol di CI; migration, health API, dan health web lulus pada run `34703835790`.
