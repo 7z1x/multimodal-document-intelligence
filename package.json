@@ -5,9 +5,14 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint && uv --directory services/api run ruff check .",
+    "lint": "turbo lint && uv --directory services/api run ruff check . ../../scripts",
     "typecheck": "turbo typecheck && uv --directory services/api run mypy app",
     "test": "turbo test && uv --directory services/api run pytest -q",
+    "contracts:export": "uv --directory services/api run python ../../scripts/export_contracts.py",
+    "contracts:check": "uv --directory services/api run python ../../scripts/export_contracts.py --check",
+    "dataset:generate": "uv --directory services/api run python ../../scripts/generate_synthetic_dataset.py",
+    "benchmark": "uv --directory services/api run python ../../scripts/run_baseline.py",
+    "security:check": "uv --directory services/api run python ../../scripts/security_check.py",
     "api:dev": "uv --directory services/api run uvicorn app.main:app --reload",
     "api:migrate": "uv --directory services/api run alembic upgrade head"
   },

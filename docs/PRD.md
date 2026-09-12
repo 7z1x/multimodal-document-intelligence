@@ -209,10 +209,10 @@ Setiap fitur dalam ruang lingkup MVP dianggap diterima apabila memenuhi kriteria
 ## 9. Definition of Done (DoD)
 
 Tahap pengembangan MVP dianggap selesai (Done) hanya jika:
-- [ ] Seluruh skema contracts (Pydantic models) terdokumentasi dan divalidasi oleh automated unit tests.
-- [ ] Seluruh unit tests dan integration tests pada `services/api/tests/` berhasil lolos (100% pass) menggunakan pytest.
-- [ ] Pengujian evaluasi deterministik (CER/WER pada sampel OCR, field extraction accuracy, Hit@K retrieval, sitasi) mencapai target ambang batas yang ditetapkan dalam `docs/EVALUATION_PLAN.md`.
+- [x] Seluruh skema contracts (Pydantic models) terdokumentasi dan divalidasi oleh automated unit tests.
+- [x] Seluruh unit tests dan integration tests pada `services/api/tests/` berhasil lolos (100% pass) menggunakan pytest.
+- [ ] Pengujian evaluasi deterministik lengkap mencapai target. Baseline native/extraction/retrieval/sitasi sudah lulus; CER/WER PaddleOCR dan dataset produksi belum diukur.
 - [ ] Trace eksekusi berhasil terkirim dan terlihat pada instance Langfuse self-hosted tanpa error koneksi.
-- [ ] Tidak ada hardcoded secrets, kredensial, atau path absolut lokal di dalam basis kode.
-- [ ] Tidak ada data pribadi (PII) atau dokumen privat yang tersimpan di dalam repositori git.
-- [ ] Konfigurasi Docker Compose dapat dijalankan di lingkungan baru secara deterministik tanpa intervensi manual tambahan.
+- [x] Automated repository scan tidak menemukan secret aktual atau path absolut lokal di dalam basis kode. Kredensial Compose default adalah development-only, bukan production secret.
+- [x] Automated repository scan membatasi dokumen commit hanya ke dataset sintetis berlisensi CC0.
+- [ ] Konfigurasi Docker Compose tervalidasi dan container smoke tersedia di CI; checkbox ditutup setelah fresh CI run lulus.

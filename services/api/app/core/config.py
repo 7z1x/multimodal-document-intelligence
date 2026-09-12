@@ -1,10 +1,22 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+
+def _repository_root() -> Path:
+    configured = os.getenv("MDI_REPOSITORY_ROOT")
+    if configured:
+        return Path(configured).resolve()
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pnpm-workspace.yaml").exists():
+            return parent
+    return Path.cwd().resolve()
+
+
+REPOSITORY_ROOT = _repository_root()
 
 
 class Settings(BaseSettings):

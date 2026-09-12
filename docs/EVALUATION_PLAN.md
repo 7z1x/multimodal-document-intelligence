@@ -266,17 +266,17 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
 | **Character Error Rate (CER - Scan Noisy)**| OCR / Text | Levenshtein Character Distance | Ya (Deterministik) | not measured | CER <= 0.08 | CER <= 0.12 |
 | **Word Error Rate (WER - Scan Clean)** | OCR / Text | Levenshtein Word Distance | Ya (Deterministik) | not measured | WER <= 0.05 | WER <= 0.08 |
 | **Word Error Rate (WER - Scan Noisy)** | OCR / Text | Levenshtein Word Distance | Ya (Deterministik) | not measured | WER <= 0.12 | WER <= 0.18 |
-| **Field Exact Match (EM)** | Structured Extraction | String Case-Sensitive Comparison | Ya (Deterministik) | not measured | EM >= 0.95 | EM >= 0.90 |
+| **Field Exact Match (EM)** | Structured Extraction | String Case-Sensitive Comparison | Ya (Deterministik) | 1.0000 (synthetic n=1) | EM >= 0.95 | EM >= 0.90 |
 | **Field Normalized Fuzzy Match** | Structured Extraction | Levenshtein Distance Normalized | Ya (Deterministik) | not measured | Score >= 0.90 | Score >= 0.82 |
 | **Numeric Tolerance Match** | Structured Extraction | Absolute Difference (selisih <= 0.01) | Ya (Deterministik) | not measured | Rate >= 0.98 | Rate >= 0.95 |
-| **Mathematical Validation** | Structured Extraction | Aturan: Subtotal + Pajak == Total | Ya (Deterministik) | not measured | Rate == 1.00 | Rate >= 0.98 |
-| **Retrieval Hit@1** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@1 >= 0.75 | Hit@1 >= 0.65 |
-| **Retrieval Hit@3** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@3 >= 0.88 | Hit@3 >= 0.80 |
-| **Retrieval Hit@5** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | not measured | Hit@5 >= 0.95 | Hit@5 >= 0.90 |
-| **Context Precision** | Retrieval | Ranked ID Average Precision | Ya (Deterministik) | not measured | Score >= 0.85 | Score >= 0.75 |
+| **Mathematical Validation** | Structured Extraction | Aturan: Subtotal + Pajak == Total | Ya (Deterministik) | 1.0000 (synthetic n=1) | Rate == 1.00 | Rate >= 0.98 |
+| **Retrieval Hit@1** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | 1.0000 (synthetic q=3) | Hit@1 >= 0.75 | Hit@1 >= 0.65 |
+| **Retrieval Hit@3** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | 1.0000 (synthetic q=3) | Hit@3 >= 0.88 | Hit@3 >= 0.80 |
+| **Retrieval Hit@5** | Retrieval | Metadata Chunk Matching | Ya (Deterministik) | 1.0000 (synthetic q=3) | Hit@5 >= 0.95 | Hit@5 >= 0.90 |
+| **Context Precision** | Retrieval | Ranked ID Average Precision | Ya (Deterministik) | 1.0000 (synthetic q=3) | Score >= 0.85 | Score >= 0.75 |
 | **Context Recall** | Retrieval | Offline Ground-Truth Coverage | Ya (Deterministik) | not measured | Score >= 0.90 | Score >= 0.80 |
-| **Citation Page Accuracy** | Citations | Integer Comparison Page Number | Ya (Deterministik) | not measured | Accuracy >= 0.95 | Accuracy >= 0.88 |
-| **Citation Text Support** | Citations | Substring Search & Normalized Fuzzy | Ya (Deterministik) | not measured | Support >= 0.92 | Support >= 0.85 |
+| **Citation Page Accuracy** | Citations | Integer Comparison Page Number | Ya (Deterministik) | 1.0000 (synthetic q=3) | Accuracy >= 0.95 | Accuracy >= 0.88 |
+| **Citation Text Support** | Citations | Substring Search & Normalized Fuzzy | Ya (Deterministik) | 1.0000 (synthetic q=3) | Support >= 0.92 | Support >= 0.85 |
 | **Faithfulness** | Generation / Groundedness | Muse Structured LLM-as-Judge | Tidak (LLM-as-judge) | not measured | Score >= 0.90 | Score >= 0.82 |
 | **Answer Correctness** | Generation / Groundedness | Muse Structured LLM-as-Judge | Tidak (LLM-as-judge) | not measured | Score >= 0.88 | Score >= 0.80 |
 | **Abstention Accuracy** | Generation / Safety | String Pattern Match ("Tidak Ditemukan")| Ya (Deterministik) | not measured | Accuracy >= 0.95 | Accuracy >= 0.90 |
@@ -292,7 +292,7 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
 ## 5. Protokol Pelaksanaan Evaluasi
 
 1. **Automated Regression Test (CI):**
-   - Setiap perubahan kode pada repositori menjalankan suite test evaluasi deterministik pada subset ringkas (10 invoice sintetis) untuk memastikan tidak ada penurunan performa parsing dan sitasi.
+   - Setiap perubahan menjalankan dataset sintetis yang tersedia (saat ini 1 invoice/3 query); target berikutnya memperluas subset CI menjadi 10 invoice.
 2. **Periodic Golden Evaluation (Offline):**
    - Dijalankan secara menyeluruh pada dataset ground-truth penuh (50+ invoice dengan variasi kategori A-D).
    - Menghasilkan laporan evaluasi terstruktur dalam format JSON dan Markdown di direktori `storage/eval-reports/`.

@@ -92,6 +92,8 @@ Penggunaan nama berkas asli dari pengguna (*original filename*) secara langsung 
 - **Pengelolaan Environment Variables:** Seluruh kredensial dikonfigurasi melalui berkas `.env` lokal saat pengembangan dan disuntikkan via Docker secrets / environment variables pada saat runtime.
 - **Pengecualian Git:** Berkas `.env`, `.env.local`, dan berkas berkredensial lainnya wajib didaftarkan di dalam `.gitignore`. Hanya berkas contoh tanpa nilai nyata (`.env.example`) yang diizinkan berada di repositori.
 - **Rotasi Kredensial:** Sistem mendukung rotasi kunci API (seperti LLM provider API key) melalui pembaruan environment variable tanpa memerlukan perubahan pada basis kode.
+- **Pemeriksaan CI:** `pnpm security:check` memindai tracked/untracked source untuk pola secret umum, path user Windows, berkas `.env`, serta dokumen di luar `datasets/samples/`.
+- **Dataset Portfolio:** Satu-satunya dokumen yang boleh di-commit berada di `datasets/samples/`, bersifat sintetis, dan label ground-truth mencantumkan lisensi `CC0-1.0 synthetic`.
 
 ---
 

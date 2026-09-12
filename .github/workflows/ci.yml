@@ -8,6 +8,23 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: mdi_test
+          POSTGRES_USER: mdi
+          POSTGRES_PASSWORD: mdi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mdi -d mdi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://mdi:mdi@localhost:5432/mdi_test
+      TEST_DATABASE_URL: postgresql+asyncpg://mdi:mdi@localhost:5432/mdi_test
     steps:
       - uses: actions/checkout@v4
 
@@ -29,5 +46,22 @@ jobs:
       - run: uv sync --directory services/api --frozen
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm contracts:check
+      - run: pnpm security:check
+      - run: pnpm api:migrate
       - run: pnpm test
+      - run: pnpm benchmark
       - run: pnpm build
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose up --detach --build
+      - run: curl --fail --retry 60 --retry-delay 2 --retry-all-errors http://localhost:8000/health
+      - run: curl --fail --retry 60 --retry-delay 2 --retry-all-errors http://localhost:3000/
+      - if: failure()
+        run: docker compose ps && docker compose logs --no-color
+      - if: always()
+        run: docker compose down --volumes

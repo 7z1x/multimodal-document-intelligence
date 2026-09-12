@@ -7,8 +7,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 ## Status Project
 
 > [!IMPORTANT]
-> **Status: Stage 14 — Evaluated and Observable Agentic RAG**
-> Seluruh pipeline Stage 1–14 sudah diimplementasikan: intake, OCR/extraction, retrieval, reranking, grounded generation, verifikasi sitasi, evaluation sampling, audit log teredaksi, dan ekspor Langfuse fail-safe.
+> **Status: MVP release candidate — Stage 1–14 complete**
+> Pipeline produk sudah diimplementasikan. Final release gate yang masih eksternal adalah melihat satu trace pada dashboard Langfuse; status detail dan batas baseline dicatat apa adanya di bawah.
 
 ### Yang sudah diverifikasi
 
@@ -29,18 +29,20 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - Evaluation batch dengan citation match, ID-ranked context precision, Hit@K, abstention correctness, latency gate, serta Muse LLM-as-judge untuk faithfulness dan answer correctness opsional.
 - Structured trace event, trace ID per RAG run, latency setiap node, JSONL audit log teredaksi, dan exporter Langfuse SDK v4 yang tidak memblokir pipeline ketika dinonaktifkan/down.
 - Frontend lint, TypeScript type-check, dan production build.
-- Backend Ruff, MyPy, 27 automated tests, dan migration PostgreSQL sampai `20260912_0005 (head)`.
+- Kontrak OpenAPI dan schema invoice ter-versioning serta diperiksa otomatis terhadap drift.
+- Backend Ruff, MyPy, 32 automated tests (termasuk PostgreSQL integration test), dan migration PostgreSQL sampai `20260912_0005 (head)`.
+- Baseline sintetis nyata pada PostgreSQL: field exact accuracy, mathematical validation, Hit@1/3/5, context precision, citation page accuracy, dan citation support semuanya `1.0` pada 1 invoice/3 query. Ini regression smoke kecil, bukan klaim performa produksi.
 
 ### Batas verifikasi saat ini
 
-- PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. Docker Desktop/Compose belum tersedia pada environment pemeriksaan.
+- PostgreSQL development khusus project berjalan pada port lokal `55432`; `.env` lokal tidak dilacak Git. File Compose telah lolos validasi konfigurasi, tetapi engine Docker lokal tidak aktif; fresh container smoke dijalankan oleh CI.
 - Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi pada CPU Windows: 5 blok teks terbaca dengan confidence rata-rata `0.9882` pada invoice sintetis. Cold start setelah model tercache sekitar 75 detik; benchmark dataset/p95 belum tersedia.
 - PaddlePaddle 3.3.1 CPU mengalami regresi oneDNN/PIR pada environment ini. Adapter menonaktifkan MKL-DNN dan modul formula/chart/seal yang tidak diperlukan invoice; inferensi kemudian berhasil.
 - Jawaban RAG membutuhkan `opencode serve` dan akses internet. Muse Spark berjalan online; tidak ada model LLM/embedding yang dimuat di laptop.
 - Teks pertanyaan dan chunk relevan dikirim ke provider OpenCode, sehingga dokumen sensitif memerlukan persetujuan pengguna dan pemeriksaan kebijakan provider.
 - Baseline heuristik belum mengekstrak line item kompleks; gunakan backend OpenCode untuk layout invoice yang bervariasi.
 - Token/cost tetap `not reported` jika provider OpenCode tidak mengirim metadata usage; sistem tidak mengarang nilainya.
-- Ragas `0.4.3` tidak dipakai pada runtime karena konflik aktual dengan `langchain-community 0.4.2`; metrik deterministik dihitung internal dan semantic judge memakai Muse/OpenCode. Benchmark dataset penuh tetap belum dijalankan.
+- Ragas `0.4.3` tidak dipakai pada runtime karena konflik aktual dengan `langchain-community 0.4.2`; metrik deterministik dihitung internal dan semantic judge memakai Muse/OpenCode. Hasil baseline kecil ada di `docs/BASELINE_RESULTS.md`; benchmark 50+ invoice dan CER/WER PaddleOCR tetap belum diukur.
 - Ekspor Langfuse tersedia tetapi default nonaktif sampai instance, public key, dan secret key valid dikonfigurasi. Audit database dan JSONL tetap aktif tanpa Langfuse.
 
 ---
@@ -115,6 +117,8 @@ Spesifikasi teknis lengkap telah didokumentasikan secara terperinci dalam berkas
    *Security Model & Policies:* Kebijakan verifikasi magic bytes, batas ukuran berkas & halaman, pencegahan path traversal, isolasi upload, proteksi indirect prompt injection, dan log data scrubbing.
 6. [docs/LANGFUSE_SETUP.md](docs/LANGFUSE_SETUP.md)
    *Observability Setup:* Cara mengaktifkan exporter Langfuse tanpa memasukkan secret ke Git dan batas verifikasi status trace.
+7. [docs/BASELINE_RESULTS.md](docs/BASELINE_RESULTS.md)
+   *Measured Baseline:* Hasil regression benchmark sintetis yang benar-benar dijalankan.
 
 ---
 
@@ -166,4 +170,15 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm contracts:check
+pnpm security:check
+pnpm benchmark
 ```
+
+Fresh container startup (LLM online hanya dibutuhkan ketika endpoint Q&A dipakai):
+
+```powershell
+docker compose up --detach --build --wait
+```
+
+Compose menjalankan PostgreSQL, migration one-shot, API, dan web secara berurutan dengan healthcheck. Kredensial database default hanya untuk stack development lokal dan dapat diganti melalui environment variable.
