@@ -24,10 +24,17 @@ class Settings(BaseSettings):
     max_image_pixels: int = Field(default=40_000_000, gt=0)
     native_text_min_characters: int = Field(default=40, ge=0)
     extraction_backend: str = "heuristic"
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:4b"
-    ollama_timeout_seconds: float = Field(default=120, gt=0)
+    opencode_base_url: str = "http://127.0.0.1:4096"
+    opencode_provider: str = "opencode"
+    opencode_model: str = "muse-spark-1.3-contributor-free"
+    opencode_timeout_seconds: float = Field(default=120, gt=0)
+    opencode_directory: Path = REPOSITORY_ROOT
     max_extraction_characters: int = Field(default=30_000, gt=0)
+    rag_chunk_size: int = Field(default=900, ge=100)
+    rag_chunk_overlap: int = Field(default=120, ge=0)
+    rag_top_k: int = Field(default=5, ge=1, le=20)
+    rag_min_relevance: float = Field(default=0.15, ge=0, le=1)
+    agent_max_retrieval_attempts: int = Field(default=2, ge=1, le=5)
     cors_origins: list[str] = ["http://localhost:3000"]
 
 

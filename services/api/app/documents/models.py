@@ -13,6 +13,8 @@ class DocumentStatus(StrEnum):
     PROCESSING = "processing"
     TEXT_EXTRACTED = "text_extracted"
     STRUCTURE_EXTRACTED = "structure_extracted"
+    INDEXING = "indexing"
+    INDEXED = "indexed"
     FAILED = "failed"
 
 

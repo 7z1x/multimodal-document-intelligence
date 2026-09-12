@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Partially Implemented: Secure Intake and Extraction Controls; Remaining RAG Policies Planned
+Partially Implemented: Secure Intake, Extraction, RAG Isolation, and Citation Controls
 
 ---
 
@@ -16,22 +16,23 @@ Aplikasi ini dirancang untuk memproses dokumen invoice yang memuat informasi tra
 
 ## 2. Batas Privasi Data & Mode Deployment (Privacy Boundaries)
 
-Sistem dirancang untuk mendukung dua mode operasional yang memiliki batas privasi dan penanganan data berbeda secara fundamental:
+Implementasi Stage 9 memakai external-provider mode. Mode lokal di bawah hanya opsi arsitektur masa depan, bukan runtime aktif saat ini.
 
-### 2.1 Mode A: Local Mode (Fully Self-Hosted)
-- **Komponen Berjalan:** Engine OCR (PaddleOCR), model embedding lokal, model LLM lokal (via Ollama/vLLM), database PostgreSQL + pgvector, penyimpanan disk lokal, dan server Langfuse dijalankan sepenuhnya di infrastruktur lokal/on-premise.
+### 2.1 Mode A: Local Mode (Belum Diimplementasikan)
+- **Komponen Berjalan:** Engine OCR, model retrieval, model LLM, database, penyimpanan, dan observability dijalankan sepenuhnya di infrastruktur lokal/on-premise.
 - **Karakteristik Privasi:**
-  - Tidak ada data dokumen, teks, atau embedding yang dikirimkan ke model API eksternal pihak ketiga.
+  - Tidak ada data dokumen atau teks yang dikirimkan ke model API eksternal pihak ketiga.
   - Cocok untuk kepatuhan ketat di mana data finansial dilarang meninggalkan perimeter jaringan internal.
 
-### 2.2 Mode B: External-Provider Mode (Cloud AI Providers)
-- **Komponen Berjalan:** Dokumen lokal diproses secara hybrid, di mana ekstraksi terstruktur, embedding, atau reasoning agent memanfaatkan API penyedia eksternal (seperti OpenAI, Anthropic, atau cloud embedding API).
+### 2.2 Mode B: OpenCode External-Provider Mode (Aktif)
+- **Komponen Berjalan:** Parsing dan PostgreSQL full-text retrieval berjalan lokal. Ekstraksi opsional, query rewrite, dan jawaban agent menggunakan Muse Spark online melalui server OpenCode loopback.
 - **Karakteristik & Batasan Privasi:**
   - **Pemberitahuan kepada Pengguna (User Notice & Consent):** Pengguna wajib diberi informasi secara transparan pada antarmuka web bahwa teks dokumen akan dikirimkan ke penyedia model pihak ketiga untuk pemrosesan AI.
   - **Prinsip Minimalisasi Data (Data Minimization):** Hanya teks atau potongan chunk dokumen yang benar-benar relevan yang dikirimkan ke API eksternal, bukan berkas biner lengkap tanpa filter.
   - **Kebijakan Retensi Pihak Ketiga:** Masa retensi, penyimpanan sementara, dan kebijakan pemrosesan data tunduk pada *Data Processing Agreement (DPA)* dan ketentuan layanan penyedia pihak ketiga terkait.
   - **Batasan Jaminan Penghapusan:** Sistem **TIDAK MENJAMIN** penghapusan data secara instan pada server, cache, atau log di infrastruktur penyedia model pihak ketiga.
   - **Pembatasan Observability Trace:** Dilarang keras mencatat isi dokumen lengkap atau gambar mentah berkas ke dalam log atau trace observabilitas Langfuse saat menggunakan mode external provider.
+  - **Tool Isolation:** Session inference dibuat dengan permission deny-all dan semua coding tools OpenCode dimatikan agar prompt injection dalam dokumen tidak dapat membaca atau mengubah file host.
 
 ---
 
@@ -147,7 +148,7 @@ Untuk mematuhi prinsip privasi data dan perlindungan data finansial:
    Saat pengguna memilih tindakan "Hapus Dokumen" atau saat sesi kedaluwarsa:
    - File biner fisik pada `storage/{document_id}.{ext}` dihapus secara permanen dari disk lokal menggunakan fungsi filesystem OS (`os.remove()`).
    - Seluruh baris terkait pada tabel database PostgreSQL lokal (`documents`, `document_pages`, `document_chunks`, `invoice_extractions`, `chat_messages`) dihapus secara kaskade (*CASCADE DELETE*).
-   - Indeks vektor chunk dokumen terkait di pgvector dihapus seketika.
+   - Indeks full-text chunk dokumen terkait di PostgreSQL dihapus seketika.
 3. **Batasan Terhadap Pihak Ketiga:**
    - Pada **Local Mode**, penghapusan di atas mencakup seluruh siklus hidup dokumen karena seluruh komponen berjalan on-premise.
    - Pada **External-Provider Mode**, penghapusan lokal tidak menghapus log atau cache yang mungkin disimpan sementara oleh penyedia API eksternal sesuai syarat layanan mereka. Sistem tidak mengklaim atau menjanjikan penghapusan data di infrastruktur pihak ketiga.

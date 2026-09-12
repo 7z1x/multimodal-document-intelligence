@@ -141,7 +141,7 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
 
 #### A. Retrieval Hit@K (Hit@1, Hit@3, Hit@5)
 - **Tipe:** Deterministik.
-- **Tujuan:** Mengukur apakah chunk yang memuat jawaban ground-truth berada dalam K peringkat teratas yang ditarik dari pgvector.
+- **Tujuan:** Mengukur apakah chunk yang memuat jawaban ground-truth berada dalam K peringkat teratas hasil full-text retrieval.
 - **Formula:**
   `Hit@K = Jumlah Kueri dengan Potongan Relevan di Top-K / Total Kueri yang Diuji`
 - **Status Metrik:**
@@ -223,14 +223,14 @@ Setiap metrik memuat tiga tingkatan status: **Measured Result**, **Provisional T
     - Validasi File: p95 <= 500 ms
     - Native Text Extraction (PDF digital): p95 <= 2 detik
     - PaddleOCR PP-StructureV3 (CPU mode, 1 halaman): p95 <= 15 detik
-    - Ingestion & Embedding ke pgvector: p95 <= 3 detik
+    - Ingestion & full-text indexing: p95 <= 3 detik
     - Q&A Retrieval + Reranking: p95 <= 1.5 detik
     - End-to-End Q&A Generation: p95 <= 4 detik
   - **Final Acceptance Threshold:**
     - Validasi File: p95 <= 1000 ms
     - Native Text Extraction (PDF digital): p95 <= 4 detik
     - PaddleOCR PP-StructureV3 (CPU mode, 1 halaman): p95 <= 25 detik
-    - Ingestion & Embedding ke pgvector: p95 <= 5 detik
+    - Ingestion & full-text indexing: p95 <= 5 detik
     - Q&A Retrieval + Reranking: p95 <= 2.5 detik
     - End-to-End Q&A Generation: p95 <= 6 detik
 

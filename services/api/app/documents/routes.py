@@ -17,11 +17,12 @@ from app.documents.schemas import (
 from app.documents.service import DocumentService
 from app.extraction.base import InvoiceExtractor
 from app.extraction.heuristic import HeuristicInvoiceExtractor
-from app.extraction.ollama import OllamaInvoiceExtractor
+from app.extraction.opencode import OpenCodeInvoiceExtractor
 from app.extraction.schemas import FieldEvidence, InvoiceData
 from app.ingestion.parser import DocumentParser
 from app.ingestion.validation import UploadValidator
 from app.ocr.paddle import LazyPaddleStructureEngine
+from app.providers.opencode import OpenCodeStructuredClient
 from app.storage.local import LocalFileStorage
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -53,17 +54,21 @@ def get_processing_service(
     extractor: InvoiceExtractor
     if settings.extraction_backend == "heuristic":
         extractor = HeuristicInvoiceExtractor()
-    elif settings.extraction_backend == "ollama":
-        extractor = OllamaInvoiceExtractor(
-            base_url=settings.ollama_base_url,
-            model=settings.ollama_model,
-            timeout_seconds=settings.ollama_timeout_seconds,
+    elif settings.extraction_backend == "opencode":
+        extractor = OpenCodeInvoiceExtractor(
+            client=OpenCodeStructuredClient(
+                base_url=settings.opencode_base_url,
+                provider=settings.opencode_provider,
+                model=settings.opencode_model,
+                directory=settings.opencode_directory,
+                timeout_seconds=settings.opencode_timeout_seconds,
+            ),
             max_characters=settings.max_extraction_characters,
         )
     else:
         raise AppError(
             code="INVALID_EXTRACTION_BACKEND",
-            message="EXTRACTION_BACKEND harus bernilai 'heuristic' atau 'ollama'",
+            message="EXTRACTION_BACKEND harus bernilai 'heuristic' atau 'opencode'",
             status_code=500,
         )
     return DocumentProcessingService(

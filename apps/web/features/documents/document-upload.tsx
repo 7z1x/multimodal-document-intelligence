@@ -4,6 +4,7 @@ import { ChangeEvent, DragEvent, useRef, useState } from "react";
 
 import { processDocument, uploadDocument } from "./api";
 import type { DocumentRecord, InvoiceExtraction } from "./types";
+import { RagWorkspace } from "./rag-workspace";
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
@@ -188,6 +189,8 @@ export function DocumentUpload() {
           </p>
         </div>
       ) : null}
+
+      {extraction && document ? <RagWorkspace documentId={document.id} /> : null}
     </section>
   );
 }

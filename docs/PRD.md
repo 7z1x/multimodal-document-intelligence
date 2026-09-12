@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Stage 7 Parsing and Structured Extraction Implemented (RAG, Agent, and Evaluation Pending)
+Approved Baseline; Stage 9 Grounded Agentic RAG Implemented (Evaluation and Observability Pending)
 
 ---
 
@@ -44,7 +44,7 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
 - **Dokumen Non-Invoice:** Tidak mendukung dokumen legal panjang (kontrak perjanjian ratusan halaman), slip gaji, struk kasir termal (thermal receipts), bank statement, atau dokumen tulisan tangan penuh.
 - **Integrasi ERP Langsung:** Tidak ada integrasi dua arah langsung ke sistem ERP seperti SAP, Oracle NetSuite, Xero, atau QuickBooks pada MVP.
 - **Multi-Tenant User Management & RBAC:** Tidak menyediakan sistem hierarki organisasi, billing pelanggan SaaS, atau izin akses bertingkat pada MVP.
-- **Cloud Distributed Storage / Managed Vector DB:** Tidak mengandalkan cluster penyimpanan cloud terdistribusi (AWS S3) atau cloud vector service berbayar; infrastruktur MVP sepenuhnya terwadahi secara lokal via Docker Compose.
+- **Cloud Distributed Storage / Managed Search:** Tidak mengandalkan S3 atau managed search/vector service berbayar; file dan indeks retrieval MVP memakai storage lokal serta PostgreSQL.
 - **Model Fine-Tuning:** Tidak melakukan fine-tuning model LLM atau OCR; seluruh ekstraksi mengandalkan pre-trained weights dan zero/few-shot schema prompting.
 
 ---
@@ -59,7 +59,7 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
    - Menggunakan `PaddleOCR PP-StructureV3` untuk deteksi layout, pemisahan tabel, dan pengenalan teks optik pada dokumen hasil scan atau gambar (JPG/PNG).
    - Catatan lingkup: Pustaka pihak ketiga seperti Docling tidak dimasukkan ke dalam ruang lingkup MVP.
 3. **Structured Invoice Extraction:** Mengurai konten teks/tabel hasil ekstraksi ke dalam format JSON terstruktur yang divalidasi oleh skema Pydantic (Nomor Invoice, Tanggal, Vendor, Pembeli, Rincian Line Items, Pajak, Subtotal, dan Total).
-4. **Grounded Document RAG:** Kemampuan tanya jawab interaktif berbasis konteks invoice tunggal menggunakan LangChain dan pgvector, dilengkapi filter metadata `document_id`.
+4. **Grounded Document RAG:** Tanya jawab invoice tunggal menggunakan LangChain chunking, PostgreSQL full-text retrieval, dan filter wajib `document_id`.
 5. **Verifiable Citations:** Setiap jawaban Q&A wajib menyertakan sitasi halaman dan potongan kutipan teks asli (bounding box / text snippet) agar staf finance dapat langsung memverifikasi kebenaran jawaban pada dokumen asli.
 6. **Agentic Workflow (LangGraph):** Workflow agen terbatas dengan state machine yang mencakup:
    - Query rewrite untuk memperjelas istilah akuntansi/finance.
@@ -93,7 +93,7 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
   [Structured Extraction ke Skema JSON (Pydantic)]
                   │
                   ▼
-  [Chunking Halaman/Tabel + Embedding ke pgvector]
+  [Chunking Halaman/Tabel + PostgreSQL Full-Text Index]
                   │
                   ▼
 [Tampilan Dashboard: Ringkasan Invoice & Pratinjau Dokumen]
@@ -133,11 +133,11 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
 | **FR-05** | OCR / Layout | Sistem harus mengekstrak struktur tabel invoice (baris, kolom, header, sel) menggunakan kemampuan layout PP-StructureV3. |
 | **FR-06** | Extraction | Sistem harus mengekstrak informasi invoice ke dalam skema Pydantic standar: nomor invoice, tanggal invoice, tanggal jatuh tempo, identitas vendor, identitas pembeli, item baris (kuantitas, deskripsi, harga satuan, total baris), subtotal, pajak, dan total akhir. |
 | **FR-07** | Extraction | Sistem harus menjalankan validasi kalkulasi matematis dasar secara deterministik: subtotal + total pajak = total tagihan (dengan toleransi pembulatan mata uang). |
-| **FR-08** | Retrieval | Sistem harus memecah dokumen menjadi potongan (chunk) berbasis halaman dan batas tabel logis, serta mengindeks representasi vektor potongan tersebut ke PostgreSQL pgvector dengan metadata `document_id` dan `page_number`. |
+| **FR-08** | Retrieval | Sistem harus memecah dokumen menjadi chunk berbasis halaman/tabel dan mengindeks kontennya dengan PostgreSQL GIN full-text index beserta `document_id` dan `page_number`. |
 | **FR-09** | Agent / RAG | Sistem harus menyediakan alur tanya jawab berbasis LangGraph yang mencakup: query rewriting, penarikan dokumen terindeks, dan verifikasi kecukupan konteks. |
 | **FR-10** | Generation | Sistem harus menghasilkan jawaban yang menyertakan sitasi eksplisit berupa nomor halaman dan potongan kutipan teks pendukung dari dokumen asli. |
 | **FR-11** | Generation | Sistem harus melakukan abstention (menjawab "Informasi tidak ditemukan dalam dokumen") jika konteks yang ditarik tidak memuat jawaban yang ditanyakan, alih-alih mengarang jawaban. |
-| **FR-12** | Observability| Sistem harus mengirimkan log trace eksekusi dari setiap pemanggilan LLM, embedding, retrieval, dan node agent ke instance Langfuse self-hosted. |
+| **FR-12** | Observability| Sistem harus mengirimkan log trace setiap pemanggilan LLM, retrieval, dan node agent ke instance Langfuse self-hosted. |
 
 ---
 

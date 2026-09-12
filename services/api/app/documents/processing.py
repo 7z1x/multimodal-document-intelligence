@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.models import RagRun
 from app.core.exceptions import AppError
 from app.documents.models import Document, DocumentStatus
 from app.documents.page_models import DocumentPage
@@ -10,6 +11,7 @@ from app.extraction.base import InvoiceExtractor
 from app.extraction.models import InvoiceExtractionRecord
 from app.extraction.schemas import StructuredExtraction
 from app.ingestion.parser import DocumentParser
+from app.retrieval.models import DocumentChunk
 from app.storage.local import LocalFileStorage
 
 
@@ -51,6 +53,10 @@ class DocumentProcessingService:
                 delete(InvoiceExtractionRecord).where(
                     InvoiceExtractionRecord.document_id == document_id
                 )
+            )
+            await self.session.execute(delete(RagRun).where(RagRun.document_id == document_id))
+            await self.session.execute(
+                delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
             )
             self.session.add_all(
                 [

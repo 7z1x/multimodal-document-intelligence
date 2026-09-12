@@ -7,8 +7,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 ## Status Project
 
 > [!IMPORTANT]
-> **Status: Stage 7 — Document Parsing & Structured Invoice Extraction**
-> Intake, dual-path parser, adapter PaddleOCR, ekstraksi invoice tervalidasi, persistence, API, dan UI hasil sudah diimplementasikan. Grounded RAG, agent LangGraph, evaluation runtime, dan observability masih tahap berikutnya.
+> **Status: Stage 9 — Grounded Agentic RAG**
+> Intake, parsing/OCR, structured extraction, page-aware chunking, PostgreSQL full-text retrieval, OpenCode/Muse Spark generation, bounded LangGraph agent, deterministic citation verification, audit persistence, API, dan UI sudah diimplementasikan. Evaluation runtime dan observability Langfuse masih tahap berikutnya.
 
 ### Yang sudah diverifikasi
 
@@ -19,19 +19,25 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - SQLAlchemy model dan migration Alembic awal untuk tabel `documents`.
 - Ekstraksi teks native PDF dan rendering fallback 300 DPI untuk halaman scan.
 - Adapter lazy PaddleOCR PP-StructureV3 beserta penyimpanan teks, confidence, blok, layout, dan tabel per halaman.
-- Structured extraction melalui baseline heuristik transparan atau Ollama structured output, dengan skema Pydantic, evidence per field, dan pemeriksaan `subtotal + tax == total`.
+- Structured extraction melalui baseline heuristik transparan atau Muse Spark melalui OpenCode, dengan skema Pydantic, evidence per field, dan pemeriksaan `subtotal + tax == total`.
 - API process/pages/extraction dan UI ringkasan hasil invoice.
+- Recursive page/table-aware chunking menggunakan LangChain text splitters.
+- PostgreSQL full-text retrieval dengan GIN index, relevance score, fallback lexical portabel, dan isolasi wajib `document_id`.
+- LangGraph workflow terbatas: query rewrite, retrieval, sufficiency gate, generation, verifikasi sitasi, maksimal dua attempt, lalu abstain aman.
+- UI tanya jawab, verified citations, retrieved-context score, latency, node trace, serta halaman audit `/audit/{document_id}`.
 - Frontend lint, TypeScript type-check, dan production build.
-- Backend Ruff, MyPy, 12 automated tests, dan migration SQL preview.
+- Backend Ruff, MyPy, 21 automated tests, dan migration SQL preview.
 
 ### Batas verifikasi saat ini
 
 - PostgreSQL terdeteksi pada port lokal 5432, tetapi migration project belum diterapkan karena kredensial development `mdi` belum tersedia (`InvalidPasswordError`). Docker Desktop/Compose juga tidak tersedia pada environment pemeriksaan.
 - Extra PaddleOCR, import, dan smoke inference PP-StructureV3 sudah diverifikasi pada CPU Windows: 5 blok teks terbaca dengan confidence rata-rata `0.9882` pada invoice sintetis. Cold start setelah model tercache sekitar 75 detik; benchmark dataset/p95 belum tersedia.
 - PaddlePaddle 3.3.1 CPU mengalami regresi oneDNN/PIR pada environment ini. Adapter menonaktifkan MKL-DNN dan modul formula/chart/seal yang tidak diperlukan invoice; inferensi kemudian berhasil.
-- Backend Ollama sudah diuji dengan HTTP mock dan validasi schema, tetapi belum diuji terhadap service/model Ollama lokal pada mesin ini.
-- Baseline heuristik belum mengekstrak line item kompleks; gunakan backend Ollama untuk layout invoice yang bervariasi.
-- RAG, agent, evaluation runtime, dan Langfuse belum diimplementasikan.
+- Jawaban RAG membutuhkan `opencode serve` dan akses internet. Muse Spark berjalan online; tidak ada model LLM/embedding yang dimuat di laptop.
+- Teks pertanyaan dan chunk relevan dikirim ke provider OpenCode, sehingga dokumen sensitif memerlukan persetujuan pengguna dan pemeriksaan kebijakan provider.
+- Baseline heuristik belum mengekstrak line item kompleks; gunakan backend OpenCode untuk layout invoice yang bervariasi.
+- Live PostgreSQL belum diuji karena kredensial development lokal masih ditolak; migration SQL dan query contract tersedia.
+- Evaluation runtime, Ragas benchmark, dan Langfuse belum diimplementasikan.
 
 ---
 
@@ -40,7 +46,7 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - **Validasi Berkas Ketat:** Pemeriksaan magic bytes, pembatasan ukuran berkas (maksimal 15 MB), dan batasan dokumen maksimal 10 halaman per sesi.
 - **Dual-Path Text Extraction:** Jalur ekstraksi cepat native PDF dengan fallback otomatis ke PaddleOCR PP-StructureV3 untuk dokumen hasil scan dan gambar.
 - **Ekstraksi Invoice Terstruktur:** Pemetaan data faktur ke skema Pydantic terstandarisasi lengkap dengan validasi matematika deterministik (subtotal + pajak == total).
-- **Grounded Document RAG:** Kemampuan tanya jawab interaktif berbasis konteks invoice tunggal menggunakan LangChain dan PostgreSQL pgvector.
+- **Grounded Document RAG:** Tanya jawab invoice tunggal menggunakan LangChain chunking, PostgreSQL full-text retrieval, dan Muse Spark melalui OpenCode.
 - **Sitasi Terverifikasi (Verifiable Citations):** Penyajian nomor halaman dan potongan teks bukti asli dokumen untuk setiap klaim jawaban.
 - **Agentic Workflow dengan LangGraph:** State machine untuk penulisan ulang kueri (query rewrite), retrieval ulang saat konteks tidak mencukupi, dan verifikasi sitasi otomatis.
 - **Observabilitas Menyeluruh:** Pelacakan latency, jumlah token, dan estimasi biaya per pemanggilan melalui Langfuse self-hosted.
@@ -58,12 +64,12 @@ multimodal-document-intelligence/
 │   └── api/
 │       ├── app/
 │       │   ├── core/          # Konfigurasi, middleware, & penanganan exception
-│       │   ├── db/            # Koneksi database & session pgvector
+│       │   ├── db/            # Koneksi database & session PostgreSQL
 │       │   ├── documents/     # Domain entitas & siklus hidup dokumen
 │       │   ├── ingestion/     # Validasi berkas fisik & dual-path coordinator
 │       │   ├── ocr/           # Adapter PaddleOCR PP-StructureV3 & layout parsing
 │       │   ├── extraction/    # Skema Pydantic invoice & ekstraksi terstruktur
-│       │   ├── retrieval/     # Chunking, embedding, & pencarian kemiripan pgvector
+│       │   ├── retrieval/     # Chunking & PostgreSQL full-text retrieval
 │       │   ├── generation/    # Prompt templates & sintesis jawaban bersitasi
 │       │   ├── agents/        # LangGraph state machine & verification nodes
 │       │   ├── evaluation/    # Metric runners (deterministik & Ragas)
@@ -108,14 +114,20 @@ Spesifikasi teknis lengkap telah didokumentasikan secara terperinci dalam berkas
 
 ## Menjalankan Fondasi Lokal
 
-Prasyarat: Node.js, pnpm 11, uv, Python 3.12, serta PostgreSQL 16 dengan pgvector.
+Prasyarat: Node.js, pnpm 11, uv, Python 3.12, PostgreSQL 16, dan OpenCode yang sudah login.
 
 ```powershell
 pnpm install
-uv sync --extra ocr --python 3.12 --directory services/api
+uv sync --python 3.12 --directory services/api
 Copy-Item .env.example .env
 Copy-Item apps/web/.env.example apps/web/.env.local
 pnpm api:migrate
+opencode serve --hostname 127.0.0.1 --port 4096
+```
+
+Pada terminal backend:
+
+```powershell
 pnpm api:dev
 ```
 
@@ -125,7 +137,16 @@ Pada terminal kedua:
 pnpm --filter web dev
 ```
 
-Default `EXTRACTION_BACKEND=heuristic` berjalan tanpa LLM. Untuk structured output melalui model lokal, jalankan Ollama, sediakan model yang dipilih, lalu ubah `EXTRACTION_BACKEND=ollama` pada `.env`.
+Default `EXTRACTION_BACKEND=heuristic` berjalan tanpa LLM. Untuk ekstraksi invoice melalui Muse Spark, ubah menjadi `EXTRACTION_BACKEND=opencode`. Agent RAG selalu menggunakan model `opencode/muse-spark-1.3-contributor-free` dari server OpenCode. Semua coding tools dinonaktifkan pada session inference aplikasi.
+
+Alur API Stage 8–9:
+
+```text
+POST /api/v1/documents/{id}/index
+POST /api/v1/documents/{id}/search
+POST /api/v1/documents/{id}/ask
+GET  /api/v1/documents/{id}/rag-runs
+```
 
 Pemeriksaan project:
 

@@ -4,13 +4,13 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Stage 7 Parsing and Structured Extraction Implemented, RAG and Agent Components Planned
+Approved Baseline; Stage 9 Grounded Agentic RAG Implemented, Evaluation and Observability Planned
 
 ---
 
 ## 1. Ikhtisar Arsitektur
 
-Sistem dirancang dengan pendekatan arsitektur modular yang memisahkan antarmuka pengguna (Frontend), orkestrasi pemrosesan AI (Backend API), penyimpanan relasional & vektor (PostgreSQL + pgvector), serta pemantauan siklus hidup AI (Langfuse).
+Sistem dirancang dengan pendekatan arsitektur modular yang memisahkan antarmuka pengguna, orkestrasi pemrosesan AI, PostgreSQL full-text retrieval, provider Muse Spark melalui OpenCode, serta pemantauan siklus hidup AI.
 
 Prinsip utama yang diterapkan adalah **Clean Architecture / Hexagonal Architecture**, di mana modul logika domain bisnis (ekstraksi, OCR, agen, dan evaluasi) sepenuhnya decoupled dari lapisan transport HTTP (FastAPI route handler).
 
@@ -32,7 +32,7 @@ graph TB
         Ingest["ingestion: Validator & Dual-Path Coordinator"]
         OCR["ocr: PaddleOCR PP-StructureV3 Adapter"]
         Extract["extraction: Pydantic Structured Extractor"]
-        Retrieve["retrieval: Chunking, Embedding & Vector Search"]
+        Retrieve["retrieval: Chunking & Full-Text Search"]
         Agent["agents: LangGraph State Machine Workflow"]
         Gen["generation: Prompt Templates & Citation Synthesizer"]
         Eval["evaluation: Deterministic & LLM-as-judge Runners"]
@@ -40,7 +40,7 @@ graph TB
     end
 
     subgraph DataStorageLayer ["Data & Persistence Layer"]
-        PG[("PostgreSQL 16 + pgvector")]
+        PG[("PostgreSQL 16 + GIN FTS")]
         Disk[("Local Filesystem Storage (/storage)")]
         LangfuseSvc[("Self-Hosted Langfuse Server")]
     end
@@ -104,12 +104,12 @@ multimodal-document-intelligence/
 |---|---|---|
 | `apps/web/` | Antarmuka pengguna berbasis Next.js dan TypeScript. Menyediakan upload drag-and-drop, viewer dokumen PDF/gambar dengan penanda sitasi visual, formulir inspeksi JSON hasil ekstraksi, dan interface chat Q&A. | Dilarang mengakses database atau memanggil library OCR secara langsung; seluruh komunikasi wajib via REST/SSE API. |
 | `services/api/app/core/` | Konfigurasi aplikasi via Pydantic Settings, manajemen environment variables, penanganan exception global, middleware HTTP, dan konstanta keamanan. | Tidak boleh memuat logika bisnis domain invoice atau dependensi OCR. |
-| `services/api/app/db/` | Manajemen koneksi database PostgreSQL, session maker SQLAlchemy async, dan registrasi ekstensi pgvector. | Hanya berurusan dengan koneksi database dan base ORM; tidak memuat logika parsing dokumen. |
+| `services/api/app/db/` | Manajemen koneksi database PostgreSQL dan session maker SQLAlchemy async. | Hanya berurusan dengan koneksi database dan base ORM; tidak memuat logika parsing dokumen. |
 | `services/api/app/documents/` | Definisi entitas dokumen (`DocumentSession`, `DocumentPage`), siklus hidup status pemrosesan dokumen, dan repository dokumen. | Terisolasi dari HTTP request object. |
 | `services/api/app/ingestion/` | Validasi berkas fisik (magic bytes, batas ukuran 15 MB, batas 10 halaman), pembagian halaman PDF, normalisasi gambar, dan orkestrasi jalur ekstraksi (dual-path coordinator). | Tidak melakukan ekstraksi skema field invoice (hanya menyiapkan berkas dan teks mentah). |
 | `services/api/app/ocr/` | Integrasi PaddleOCR PP-StructureV3 untuk deteksi layout dokumen, ekstraksi blok teks, dan parsing struktur tabel pada dokumen scanned atau gambar. | Tidak boleh bergantung pada layer HTTP route atau skema response API. |
 | `services/api/app/extraction/` | Definisi skema Pydantic Invoice, parsing data teks/tabel menjadi JSON terstruktur, dan validasi deterministik nilai moneter (subtotal + tax = total). | Murni berfokus pada data parsing dan validasi data terstruktur; tidak memanggil database secara langsung. |
-| `services/api/app/retrieval/` | Strategi pemotongan teks (chunking) berbasis halaman dan batas tabel logis, pembangkitan embedding vektor, dan pencarian kemiripan kosinus berbasis pgvector dengan filter `document_id`. | Hanya menangani pemotongan dan penarikan konteks; tidak menyusun jawaban akhir ke pengguna. |
+| `services/api/app/retrieval/` | Chunking berbasis halaman/tabel dan PostgreSQL full-text search dengan filter `document_id`. | Hanya menangani pemotongan dan penarikan konteks; tidak menyusun jawaban akhir ke pengguna. |
 | `services/api/app/generation/` | Penyusunan prompt, sintesis jawaban yang bersumber dari konteks dokumen, pemformatan sitasi halaman, dan aturan abstention ("informasi tidak ditemukan"). | Tidak mengelola koneksi database secara langsung. |
 | `services/api/app/agents/` | State machine workflow menggunakan LangGraph: siklus query rewrite, penarikan dokumen, pengecekan kecukupan konteks, dan verifikasi sitasi sebelum diserahkan ke pengguna. | Hanya mengorkestrasikan interaksi komponen domain; tidak memproses payload HTTP secara langsung. |
 | `services/api/app/evaluation/` | Runner dan utilitas pengujian otomatis: penghitungan metrik deterministik (CER, WER, Field Extraction Accuracy, Hit@K, Citation Match) dan evaluasi Ragas (Faithfulness, Answer Correctness). | Tidak boleh mengubah state produksi atau dijalankan dalam alur request pengguna biasa. |
@@ -119,7 +119,7 @@ multimodal-document-intelligence/
 | `datasets/samples/` | Kumpulan berkas invoice sintetis atau berlisensi publik bebas PII (PDF, JPG, PNG) untuk pengujian. | Dilarang keras menyimpan dokumen nyata perusahaan atau dokumen yang memuat data pribadi. |
 | `datasets/ground-truth/` | Dataset anotasi kebenaran mutlak (golden labels): JSON target ekstraksi per berkas sampel dan pasangan pertanyaan-jawaban emas beserta nomor halaman sitasi. | Hanya memuat data ground-truth yang terverifikasi untuk evaluasi benchmark. |
 | `storage/` | Direktori lokal host untuk menampung file upload sementara dan artefak hasil pemrosesan dokumen selama runtime MVP. | Seluruh isinya (kecuali `.gitkeep`) diabaikan oleh git (`.gitignore`). |
-| `infra/docker/` | Berkas konfigurasi kontainer: `Dockerfile` backend API, `Dockerfile` frontend web, dan `docker-compose.yml` untuk orkestrasi lokal (FastAPI, Next.js, PostgreSQL/pgvector, Langfuse). | Bebas dari password production atau private key. |
+| `infra/docker/` | Berkas kontainer FastAPI, Next.js, PostgreSQL, dan Langfuse. | Bebas dari password production atau private key. |
 | `scripts/` | Skrip pembantu operasional mandiri: skrip pembuatan data sintetis, skrip inisialisasi database, dan benchmark test runner. | Dijalankan manual via CLI, bukan bagian dari runtime API utama. |
 | `docs/` | Dokumentasi arsitektur, spesifikasi kebutuhan produk, alur data, rencana evaluasi, dan model keamanan sistem. | Wajib selalu sinkron dengan kondisi arsitektur terkini. |
 
@@ -134,7 +134,7 @@ Komunikasi antara aplikasi web (`apps/web`) dan layanan backend (`services/api`)
    - Pelacakan status pemrosesan dokumen (validasi -> ekstraksi native / OCR -> parsing struktur -> indexing) diimplementasikan secara **near-real-time status via polling** oleh frontend ke endpoint `GET /api/documents/{id}/status`. Interval polling dikonfigurasi melalui pengaturan aplikasi/environment client, bukan angka yang ditanam permanen (*not hardcoded*). WebSocket secara eksplisit **tidak digunakan** pada tahap MVP untuk menghindari kompleksitas stateful connection.
    - Sesi tanya jawab interaktif dengan agen (Q&A) memanfaatkan Server-Sent Events (SSE) semata-mata untuk streaming token respons dan visualisasi langkah penalaran agen (*thinking/tool steps*) secara responsif.
 2. **Tanpa Akses Langsung ke Database atau Engine AI:**
-   - Frontend tidak memiliki kredensial atau koneksi langsung ke PostgreSQL, pgvector, storage folder, maupun engine OCR.
+   - Frontend tidak memiliki kredensial atau koneksi langsung ke PostgreSQL, storage folder, OpenCode, maupun engine OCR.
    - Segala operasi data dan analisis wajib melalui gerbang otentikasi/validasi FastAPI.
 3. **Single Source of Truth pada Contracts:**
    - Skema payload request dan response didefinisikan secara deklaratif di direktori `contracts/`.
@@ -158,20 +158,20 @@ Setelah teks mentah dan tabel diperoleh, sistem memetakan informasi dokumen ke s
 - `FinancialSummary`: Subtotal, tarif pajak, nilai nominal pajak, biaya pengiriman, total akhir tagihan.
 - `Deterministic Validator`: Menjalankan verifikasi logika: `subtotal + pajak + biaya_tambahan - diskon == total_akhir`.
 
-### 4.3 Chunking, Embedding & Retrieval
+### 4.3 Chunking & Retrieval
 - **Hierarchical / Layout-Aware Chunking:** Dokumen tidak dipotong secara buta berdasarkan jumlah karakter semata. Chunking dilakukan dengan mempertahankan integritas halaman dan batas baris tabel logis. Metadata `document_id`, `page_number`, dan `chunk_type` (text vs table) disematkan pada setiap chunk.
-- **pgvector Integration:** Embedding vektor dihitung dan disimpan di kolom tipe data `vector` pada tabel PostgreSQL. Penarikan konteks menerapkan klausa `WHERE document_id = :current_doc_id` untuk memastikan isolasi konteks antar-dokumen.
+- **PostgreSQL Full-Text Search:** Konten chunk diindeks dengan GIN `to_tsvector('simple', content)`. Query memakai `plainto_tsquery`, relevance score, dan filter `WHERE document_id = :current_doc_id` untuk isolasi antar-dokumen.
 
 ### 4.4 Agentic Workflow (LangGraph)
 Alur penalaran tanya jawab dikontrol oleh state graph LangGraph yang deterministik:
 - **Node `rewrite_query`:** Memperbaiki formulasi pertanyaan pengguna agar selaras dengan terminologi faktur (misal: "Berapa potongan harganya?" diubah menjadi "Berapa nominal atau persentase diskon yang tercantum pada invoice?").
-- **Node `retrieve_context`:** Menarik top-K chunk relevan dari pgvector untuk dokumen aktif.
+- **Node `retrieve_context`:** Menarik top-K chunk relevan dari indeks full-text untuk dokumen aktif.
 - **Node `evaluate_sufficiency`:** Memeriksa apakah chunk yang ditarik memuat informasi yang cukup untuk menjawab pertanyaan. Jika tidak memadai, memicu ekspansi query atau pencarian fallback.
 - **Node `generate_answer`:** Menyusun respons faktual berdasarkan konteks yang ditarik, lengkap dengan referensi sitasi.
 - **Node `verify_citation`:** Memeriksa secara deterministik apakah nomor halaman dan kutipan teks yang dicantumkan benar-benar ada di dalam chunk referensi asli. Jika sitasi tidak valid, agen melakukan koreksi otomatis sebelum mengirim respons ke pengguna.
 
 ### 4.5 Observability (Langfuse Self-Hosted)
-Setiap pemanggilan model AI, embedding, pencarian vektor, dan transisi state LangGraph dibungkus oleh tracer Langfuse:
+Setiap pemanggilan model AI, pencarian konteks, dan transisi state LangGraph dibungkus oleh tracer Langfuse:
 - Mencatat latensi setiap node secara terpisah.
 - Menghitung jumlah token masukan (*prompt tokens*) dan token keluaran (*completion tokens*).
 - Menghitung estimasi biaya komputasi berdasarkan tarif model yang dikonfigurasi.
@@ -204,7 +204,7 @@ Arsitektur sistem menerapkan aturan arah ketergantungan (*dependency direction*)
 
 ### Aturan Keras:
 1. **Domain Isolation:** Modul domain (`documents`, `extraction`, `retrieval`, `ocr`, `agents`, `evaluation`) **DILARANG BERGANTUNG** pada modul `services/api/app/core` yang memuat `FastAPI`, `Request`, `Response`, `APIRouter`, atau pustaka web lainnya.
-2. **Interface Abstraction:** Modul domain berinteraksi dengan infrastruktur eksternal (penyimpanan disk, pgvector, PaddleOCR) melalui antarmuka (*abstract base class / protocol*). Implementasi konkret diinjeksikan (*dependency injection*) saat startup aplikasi.
+2. **Interface Abstraction:** Modul domain berinteraksi dengan storage, PostgreSQL retrieval, PaddleOCR, dan OpenCode melalui protocol/adapter yang diinjeksikan saat startup.
 3. **Penyimpanan Lokal Sederhana:** Modul domain menerima file dalam bentuk stream atau path lokal terabstraksi, bukan berikatan dengan konfigurasi server web tertentu.
 
 ---
@@ -218,13 +218,13 @@ Arsitektur sistem menerapkan aturan arah ketergantungan (*dependency direction*)
 | **PDF Metadata & Text Parser** | pypdf | Pustaka Python murni yang ringan dan cepat untuk membaca metadata, menghitung jumlah halaman, dan mengekstrak teks native digital tanpa ketergantungan binary berat. |
 | **PDF Rasterizer / Renderer** | pypdfium2 | Binding berkinerja tinggi ke engine PDFium untuk merender halaman PDF menjadi gambar berkualitas tinggi (300 DPI) secara cepat saat proses OCR diperlukan. |
 | **OCR & Layout Engine** | PaddleOCR PP-StructureV3 | Model open-source unggulan untuk analisis tata letak dokumen (layout analysis) dan pemisahan tabel yang rumit, dapat dijalankan secara lokal/on-premise tanpa biaya per halaman API cloud, serta mendukung CPU fallback. Docling tidak digunakan pada MVP. |
-| **Database & Vector Store** | PostgreSQL 16 + pgvector | Menyatukan penyimpanan data relasional dokumen (metadata, status pemrosesan, audit log) dengan penyimpanan indeks vektor dalam satu mesin database ACID yang tangguh, menghilangkan kompleksitas operasional database vektor terpisah pada skala MVP. |
-| **RAG Componentry** | LangChain | Memiliki koleksi abstraksi matang untuk pemotongan dokumen (*text splitters*), pembungkus model embedding, dan integrasi vector store pgvector. |
+| **Database & Retriever** | PostgreSQL 16 Full-Text Search | Menyatukan metadata, chunk, indeks GIN, dan audit log tanpa model embedding lokal atau vector database tambahan. |
+| **RAG Componentry** | LangChain | Menyediakan recursive text splitter untuk chunking yang menjaga batas halaman dan tabel. |
 | **Agent Orchestration** | LangGraph | Menyediakan kontrol penuh terhadap siklus penalaran AI berbasis state graph terarah (*cyclic graph*), memungkinkan alur koreksi diri (*self-correction*), query rewrite, dan verifikasi sitasi yang terkontrol dan dapat diprediksi. |
 | **Evaluasi AI** | Ragas + Custom Deterministic Metrics | Menggabungkan metrik standar industri untuk evaluasi RAG (faithfulness, context precision/recall) dengan metrik eksak deterministik buatan sendiri (CER, WER, exact field matching, math validation). |
 | **Observability Platform** | Langfuse (Self-Hosted) | Platform observabilitas open-source khusus untuk aplikasi LLM dan agen AI. Dapat di-host mandiri via Docker untuk menjaga kerahasiaan data finansial perusahaan, menyediakan trace menyeluruh, dan tracking biaya/token secara rinci. |
 | **Penyimpanan Berkas** | Local Filesystem Storage | Menjaga kesederhanaan arsitektur tahap MVP tanpa ketergantungan pada layanan cloud storage berbayar (AWS S3/GCS); dienkapsulasi dalam antarmuka storage adapter sehingga mudah dimigrasi ke S3 di masa mendatang. |
-| **Kontainerisasi** | Docker & Docker Compose | Menjamin konsistensi lingkungan pengembangan lokal antar-tim (*reproducibility*), memudahkan setup satu perintah untuk database PostgreSQL/pgvector dan server Langfuse. |
+| **Kontainerisasi** | Docker & Docker Compose | Menjamin konsistensi environment untuk PostgreSQL, aplikasi, dan server Langfuse. |
 | **Testing Framework** | pytest & pytest-asyncio | Standar de-facto pengujian di ekosistem Python, mendukung pengujian asinkronus untuk endpoint FastAPI dan pipeline AI. |
 | **Continuous Integration** | GitHub Actions | Otomatisasi pengujian kualitas kode, linting, validasi tipe data, dan eksekusi regression test pada setiap pull request. |
 
@@ -234,14 +234,14 @@ Arsitektur sistem menerapkan aturan arah ketergantungan (*dependency direction*)
 
 Keputusan berikut dicatat secara terbuka dan tidak dipilih secara sepihak untuk menghindari keterikatan pada layanan berbayar atau asumsi perangkat keras tanpa validasi:
 
-1. **Model LLM Final:**
-   - Apakah sistem akan menggunakan model open-weight yang di-host lokal (seperti `Qwen2.5-7B-Instruct` atau `Llama-3.2` via Ollama/vLLM) untuk menjamin isolasi data 100% on-premise, atau menggunakan cloud API efisien (seperti `gpt-4o-mini`, `claude-3-5-haiku`, atau `gemini-1.5-flash`) dengan pertimbangan kepatuhan skema JSON terstruktur dan latensi?
+1. **Model LLM Production:**
+   - Stage 9 memakai Muse Spark melalui OpenCode untuk development. Provider dengan SLA dan kebijakan data yang sesuai masih harus dipilih sebelum deployment production.
 2. **Mode Deployment Privasi (Local Mode vs. External-Provider Mode):**
    - Apakah target instalasi default difokuskan pada Local Mode murni (seluruh AI berjalan on-premise tanpa koneksi internet keluar) atau External-Provider Mode dengan izin eksplisit pengguna (*user consent*)?
-3. **Pilihan Model Embedding:**
-   - Apakah embedding vektor akan menggunakan model lokal berbasis CPU (seperti `BAAI/bge-small-en-v1.5` atau `multilingual-e5-small`) atau cloud embedding model?
+3. **Dense Retrieval Opsional:**
+   - Apakah versi berikutnya perlu menambahkan embedding cloud sebagai hybrid retrieval setelah baseline full-text dievaluasi?
 4. **Pilihan Model Reranking:**
-   - Apakah tahapan reranking akan mengadopsi model neural cross-encoder lokal (seperti `bge-reranker-small`) yang membutuhkan alokasi memori tambahan, atau menggunakan pendekatan heuristik hybrid (gabungan keyword BM25 + dense vector score)?
+   - Apakah reranking online memberi peningkatan kualitas yang cukup dibanding biaya dan latensi tambahannya?
 5. **Durasi Retensi Dokumen (Retention Duration):**
    - Berapa lama dokumen sesi disimpan sebelum dibersihkan otomatis oleh sistem (misal: 1 jam, 24 jam, atau pembersihan seketika setelah sesi ditutup oleh pengguna)?
 6. **Spesifikasi Lingkungan Benchmark Hardware:**

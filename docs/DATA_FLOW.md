@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Partially Implemented: Upload, Validation, Local Storage, and Document Metadata
+Implemented Through Grounded Agent Generation and Citation Audit; Reranking, Evaluation, and Observability Pending
 
 ---
 
@@ -22,8 +22,8 @@ flowchart TD
     D -- Teks Digital Memadai --> F[6. Structured Extraction]
     E --> F
     F --> G[7. Chunking Halaman & Tabel]
-    G --> H[8. Embedding Pembangkitan Vektor]
-    H --> I[Simpan Indeks ke PostgreSQL pgvector]
+    G --> H[8. PostgreSQL Full-Text Indexing]
+    H --> I[Simpan Chunk + GIN Index]
 
     subgraph QueryFlow ["Alur Tanya Jawab & Verifikasi (Q&A Loop)"]
         Q[Pertanyaan Pengguna] --> J[Query Rewrite Node]
@@ -135,37 +135,37 @@ flowchart TD
 - **Kemungkinan Gagal:**
   - Tabel yang sangat panjang melebihi batas ukuran maksimal satu chunk (*token window overflow*).
   - Karakter khusus yang memicu kegagalan pada fungsi text-splitter.
-- **Data yang Disimpan:** Record potongan teks sementara yang siap di-embedding.
+- **Data yang Disimpan:** Record potongan teks yang siap diindeks.
 
 ---
 
-### Tahap 8: Embedding Generation & Vector Indexing
-- **Deskripsi:** Menghitung representasi vektor numerik (*dense embedding*) untuk setiap chunk teks menggunakan model embedding terstandarisasi, kemudian menyimpannya ke tabel PostgreSQL yang dilengkapi ekstensi pgvector.
+### Tahap 8: Full-Text Indexing
+- **Deskripsi:** Menyimpan chunk dan mengindeks kontennya menggunakan PostgreSQL GIN `to_tsvector` tanpa model embedding lokal.
 - **Input:** Daftar chunk teks dari Tahap 7.
-- **Output:** Vektor embedding berdimensi tetap (misal: 1536 dimensi atau sesuai model embedding yang dipilih).
+- **Output:** Chunk yang dapat dicari menggunakan `plainto_tsquery` dan relevance ranking.
 - **Kemungkinan Gagal:**
-  - Error koneksi ke layanan embedding model.
-  - Ketidaksesuaian dimensi vektor antara model embedding dengan konfigurasi kolom pgvector.
+  - PostgreSQL tidak tersedia atau migration GIN belum diterapkan.
+  - Chunk tidak memiliki teks yang dapat diindeks.
 - **Data yang Disimpan:**
-  - Baris pada tabel `document_chunks` di PostgreSQL (id, document_id, page_number, chunk_type, content, embedding_vector, created_at).
-  - Indeks vektor HNSW / IVFFlat diperbarui.
+  - Baris `document_chunks` (id, document_id, page_number, chunk_type, content, created_at).
+  - Indeks GIN full-text diperbarui.
   - Status dokumen diperbarui menjadi "INDEXED_READY".
 
 ---
 
 ### Tahap 9: Retrieval (Penarikan Konteks Terfilter)
-- **Deskripsi:** Pengguna mengirimkan pertanyaan seputar dokumen. Query di-rewrite oleh agent, di-embedding, dan dicari kecocokannya dengan chunk dokumen menggunakan cosine distance pada pgvector dengan isolasi dokumen aktif.
+- **Deskripsi:** Query ditulis ulang oleh Muse Spark melalui OpenCode lalu dicocokkan menggunakan PostgreSQL full-text ranking dengan isolasi dokumen aktif.
 - **Input:** Query teks hasil penulisan ulang (*rewritten query*), `document_id` aktif, dan parameter `top_k` (default: 5).
-- **Output:** Kumpulan top-K chunk teks beserta skor kemiripan (*similarity score*) dan metadata nomor halaman.
+- **Output:** Kumpulan top-K chunk beserta relevance score dan metadata nomor halaman.
 - **Kemungkinan Gagal:**
-  - Tidak ada chunk yang memenuhi ambang batas kemiripan minimal (*low similarity threshold*).
+  - Tidak ada chunk yang memenuhi ambang relevance minimum.
   - Salah menerapkan filter `document_id` sehingga terjadi kebocoran konteks antar-dokumen (dicegah oleh query parameter wajib).
-- **Data yang Disimpan:** Jejak pencarian (query, retrieved chunk IDs, similarity scores) dicatat di memori sesi LangGraph dan tracer Langfuse.
+- **Data yang Disimpan:** Query, retrieved chunk IDs, dan relevance scores dicatat pada audit run.
 
 ---
 
 ### Tahap 10: Reranking
-- **Deskripsi:** Memberi skor ulang terhadap kumpulan top-K chunk yang ditarik dari pgvector menggunakan model reranker (cross-encoder) untuk menyaring potongan teks yang paling relevan secara semantik terhadap pertanyaan finansial spesifik.
+- **Deskripsi:** Tahap opsional masa depan untuk memberi skor ulang kandidat full-text dengan reranker online.
 - **Input:** Query pengguna dan top-K chunk kandidat dari Tahap 9.
 - **Output:** Daftar chunk terurut ulang (*reranked chunks*) berdasarkan relevansi semantik tertinggi.
 - **Kemungkinan Gagal:**

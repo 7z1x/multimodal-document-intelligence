@@ -1,7 +1,6 @@
-import json
 from io import BytesIO
+from typing import cast
 
-import httpx
 import pytest
 from fastapi import UploadFile
 from PIL import Image
@@ -12,10 +11,12 @@ from app.documents.models import DocumentStatus
 from app.documents.processing import DocumentProcessingService
 from app.documents.service import DocumentService
 from app.extraction.heuristic import HeuristicInvoiceExtractor, parse_amount
-from app.extraction.ollama import OllamaInvoiceExtractor
+from app.extraction.opencode import OpenCodeInvoiceExtractor
+from app.extraction.schemas import InvoiceData
 from app.ingestion.parser import DocumentParser, ParsedPage
 from app.ingestion.validation import UploadValidator
 from app.ocr.schemas import OcrBlock, OcrPageResult
+from app.providers.opencode import OpenCodeStructuredClient
 from app.storage.local import LocalFileStorage
 
 
@@ -136,43 +137,35 @@ async def test_processing_service_persists_pages_and_extraction(
 
 
 @pytest.mark.asyncio
-async def test_ollama_extractor_sends_schema_and_validates_response() -> None:
-    captured_request: dict[str, object] = {}
+async def test_opencode_extractor_validates_response() -> None:
+    class FakeOpenCodeClient:
+        async def generate(self, schema: type[InvoiceData], **_: object) -> InvoiceData:
+            return schema.model_validate(
+                {
+                    "invoice_number": "INV-MUSE-001",
+                    "invoice_date": "2026-09-12",
+                    "currency": "IDR",
+                    "vendor_name": "PT Model Online",
+                    "line_items": [],
+                    "subtotal": "100000",
+                    "tax_amount": "11000",
+                    "total_amount": "111000",
+                }
+            )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured_request.update(json.loads(request.content))
-        content = json.dumps(
-            {
-                "invoice_number": "INV-OLLAMA-001",
-                "invoice_date": "2026-09-12",
-                "currency": "IDR",
-                "vendor_name": "PT Model Lokal",
-                "line_items": [],
-                "subtotal": "100000",
-                "tax_amount": "11000",
-                "total_amount": "111000",
-            }
-        )
-        return httpx.Response(200, json={"message": {"content": content}})
-
-    extractor = OllamaInvoiceExtractor(
-        base_url="http://ollama.test",
-        model="test-model",
-        timeout_seconds=10,
+    extractor = OpenCodeInvoiceExtractor(
+        client=cast(OpenCodeStructuredClient, FakeOpenCodeClient()),
         max_characters=30_000,
-        transport=httpx.MockTransport(handler),
     )
     page = ParsedPage(
         page_number=1,
         extraction_method="native",
-        text="Invoice Number: INV-OLLAMA-001\nTotal: IDR 111000",
+        text="Invoice Number: INV-MUSE-001\nTotal: IDR 111000",
         character_count=49,
     )
 
     result = await extractor.extract([page])
 
-    assert result.backend == "ollama"
-    assert result.data.invoice_number == "INV-OLLAMA-001"
+    assert result.backend == "opencode"
+    assert result.data.invoice_number == "INV-MUSE-001"
     assert result.is_math_valid is True
-    assert captured_request["stream"] is False
-    assert isinstance(captured_request["format"], dict)
