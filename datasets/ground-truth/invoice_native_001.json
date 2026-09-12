@@ -5,6 +5,7 @@
   "filename": "invoice_native_001.pdf",
   "media_type": "application/pdf",
   "expected_extraction_method": "native",
+  "ocr_reference_text": "INVOICE Invoice Number: INV-2026-001 Invoice Date: 12/09/2026 Due Date: 19/09/2026 Vendor: PT Contoh Nusantara Buyer: Toko Belajar AI Subtotal: Rp 100.000,00 PPN: Rp 10.000,00 Grand Total: Rp 110.000,00",
   "expected_fields": {
     "invoice_number": "INV-2026-001",
     "invoice_date": "2026-09-12",

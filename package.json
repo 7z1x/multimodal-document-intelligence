@@ -12,6 +12,7 @@
     "contracts:check": "uv --directory services/api run python ../../scripts/export_contracts.py --check",
     "dataset:generate": "uv --directory services/api run python ../../scripts/generate_synthetic_dataset.py",
     "benchmark": "uv --directory services/api run python ../../scripts/run_baseline.py",
+    "benchmark:ocr": "uv --directory services/api run python ../../scripts/run_ocr_benchmark.py",
     "security:check": "uv --directory services/api run python ../../scripts/security_check.py",
     "api:dev": "uv --directory services/api run uvicorn app.main:app --reload",
     "api:migrate": "uv --directory services/api run alembic upgrade head"

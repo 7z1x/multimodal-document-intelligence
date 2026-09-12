@@ -1,0 +1,24 @@
+name: OCR benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  paddleocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --directory services/api --frozen --extra ocr
+      - run: uv --directory services/api run python ../../scripts/generate_synthetic_dataset.py
+      - run: uv --directory services/api run python ../../scripts/run_ocr_benchmark.py --report storage/eval-reports/ocr.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paddleocr-baseline
+          path: storage/eval-reports/ocr.json
+          if-no-files-found: warn
