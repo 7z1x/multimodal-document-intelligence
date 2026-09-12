@@ -12,6 +12,7 @@ def main() -> None:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     document = canvas.Canvas(str(OUTPUT), invariant=1)
     document.setTitle("Synthetic Invoice Benchmark")
+    document.setFont("Helvetica", 18)
     lines = [
         "INVOICE",
         "Invoice Number: INV-2026-001",
@@ -26,7 +27,7 @@ def main() -> None:
     y = 800
     for line in lines:
         document.drawString(60, y, line)
-        y -= 28
+        y -= 38
     document.save()
 
 

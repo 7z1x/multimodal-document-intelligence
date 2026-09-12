@@ -1,8 +1,11 @@
 # Baseline Results
 
-Generated: `2026-09-12T15:56:15.766314+00:00`  
-Status: **PASS**  
-Dataset: `invoice_native_001` (1 document, 3 queries)  
+Generated: `2026-09-12T16:06:34.755978+00:00`
+
+Status: **PASS**
+
+Dataset: `invoice_native_001` (1 document, 3 queries)
+
 Retrieval: `postgresql-full-text`
 
 | Metric | Result | Gate |

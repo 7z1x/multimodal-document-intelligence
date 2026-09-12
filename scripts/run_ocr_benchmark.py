@@ -27,7 +27,9 @@ def normalize(value: str) -> str:
 def render_first_page(path: Path) -> object:
     document = pdfium.PdfDocument(path)
     page = document[0]
-    bitmap = page.render(scale=250 / 72)
+    # A clean 96-DPI scan keeps the full PP-StructureV3 pipeline inside a
+    # standard GitHub-hosted runner's memory while preserving readable text.
+    bitmap = page.render(scale=96 / 72)
     try:
         return bitmap.to_pil().convert("RGB")
     finally:

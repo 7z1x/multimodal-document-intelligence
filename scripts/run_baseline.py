@@ -206,10 +206,13 @@ def markdown(result: dict[str, Any]) -> str:
     status = "PASS" if result["passed"] else "FAIL"
     return f"""# Baseline Results
 
-Generated: `{result['generated_at']}`  
-Status: **{status}**  
+Generated: `{result['generated_at']}`
+
+Status: **{status}**
+
 Dataset: `{result['dataset']}` \
-({result['sample_count']} document, {result['query_count']} queries)  
+({result['sample_count']} document, {result['query_count']} queries)
+
 Retrieval: `{result['retrieval_backend']}`
 
 | Metric | Result | Gate |
