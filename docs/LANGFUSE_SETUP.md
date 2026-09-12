@@ -31,3 +31,17 @@ Status exporter terlihat pada API/UI:
 - `failed`: server atau exporter gagal; pipeline utama tetap berjalan.
 
 `sent` adalah konfirmasi SDK menyelesaikan flush, bukan bukti independen bahwa dashboard telah diperiksa. Verifikasi trace di dashboard Langfuse sebelum menyatakan observability eksternal siap production.
+
+## Live Verification Evidence
+
+Pada `2026-09-12`, pipeline sintetis dijalankan penuh melalui upload, native extraction, PostgreSQL indexing, Muse RAG, citation verification, dan observability export.
+
+- RAG status: `answered`
+- Citations: `2`, keduanya terverifikasi
+- Export status: `sent`
+- Trace ID: `5f418ed12891492ea398fd08a1d47750`
+- Server read-back: trace ditemukan sebagai `agentic-rag-run`
+- Observation count: `1`
+- Environment: `development`
+
+Read-back dilakukan melalui authenticated Langfuse SDK API terhadap instance yang dikonfigurasi. Key tetap hanya berada di `.env` lokal dan tidak dicatat di repository atau laporan ini.

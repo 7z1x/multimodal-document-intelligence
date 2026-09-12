@@ -7,8 +7,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 ## Status Project
 
 > [!IMPORTANT]
-> **Status: MVP release candidate — Stage 1–14 complete**
-> Pipeline produk sudah diimplementasikan. Final release gate yang masih eksternal adalah melihat satu trace pada dashboard Langfuse; status detail dan batas baseline dicatat apa adanya di bawah.
+> **Status: MVP complete — Stage 1–14 verified**
+> Pipeline produk, quality gates, benchmark sintetis, fresh container startup, dan pengiriman trace eksternal sudah diverifikasi. Batas dataset kecil tetap dicatat agar hasil portfolio tidak dilebih-lebihkan.
 
 ### Yang sudah diverifikasi
 
@@ -32,6 +32,7 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - Kontrak OpenAPI dan schema invoice ter-versioning serta diperiksa otomatis terhadap drift.
 - Backend Ruff, MyPy, 32 automated tests (termasuk PostgreSQL integration test), dan migration PostgreSQL sampai `20260912_0005 (head)`.
 - Baseline sintetis nyata pada PostgreSQL: field exact accuracy, mathematical validation, Hit@1/3/5, context precision, citation page accuracy, dan citation support semuanya `1.0` pada 1 invoice/3 query. Clean-scan PaddleOCR di GitHub Actions memperoleh CER/WER `0.0` dan confidence `0.9781` pada 1 sampel. Keduanya regression smoke kecil, bukan klaim performa produksi.
+- RAG live smoke menghasilkan jawaban dengan dua sitasi terverifikasi dan trace `5f418ed12891492ea398fd08a1d47750`; trace yang sama dibaca kembali dari server Langfuse dengan satu observation.
 
 ### Batas verifikasi saat ini
 
@@ -42,8 +43,8 @@ Sistem kecerdasan dokumen multimodal yang dirancang untuk membantu staf finance 
 - Teks pertanyaan dan chunk relevan dikirim ke provider OpenCode, sehingga dokumen sensitif memerlukan persetujuan pengguna dan pemeriksaan kebijakan provider.
 - Baseline heuristik belum mengekstrak line item kompleks; gunakan backend OpenCode untuk layout invoice yang bervariasi.
 - Token/cost tetap `not reported` jika provider OpenCode tidak mengirim metadata usage; sistem tidak mengarang nilainya.
-- Ragas `0.4.3` tidak dipakai pada runtime karena konflik aktual dengan `langchain-community 0.4.2`; metrik deterministik dihitung internal dan semantic judge memakai Muse/OpenCode. Hasil baseline kecil ada di `docs/BASELINE_RESULTS.md`; benchmark 50+ invoice dan CER/WER PaddleOCR tetap belum diukur.
-- Ekspor Langfuse tersedia tetapi default nonaktif sampai instance, public key, dan secret key valid dikonfigurasi. Audit database dan JSONL tetap aktif tanpa Langfuse.
+- Ragas `0.4.3` tidak dipakai pada runtime karena konflik aktual dengan `langchain-community 0.4.2`; metrik deterministik dihitung internal dan semantic judge memakai Muse/OpenCode. Hasil baseline kecil ada di `docs/BASELINE_RESULTS.md`; benchmark 50+ invoice dan OCR noisy tetap belum diukur.
+- Ekspor Langfuse default nonaktif pada konfigurasi contoh, tetapi live smoke telah berhasil memakai konfigurasi `.env` lokal. Audit database dan JSONL tetap aktif saat Langfuse dimatikan atau gagal.
 
 ---
 

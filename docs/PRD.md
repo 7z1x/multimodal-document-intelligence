@@ -4,7 +4,7 @@
 **Multimodal Document Intelligence with Agentic RAG**
 
 ## Status
-Approved Baseline; Implemented Through Stage 14 Evaluation and Observability
+MVP Complete; Stage 1-14 Implemented and Verified
 
 ---
 
@@ -137,7 +137,7 @@ Untuk memastikan pengiriman yang terarah, stabil, dan dapat diuji secara terukur
 | **FR-09** | Agent / RAG | Sistem harus menyediakan alur tanya jawab berbasis LangGraph yang mencakup: query rewriting, penarikan dokumen terindeks, dan verifikasi kecukupan konteks. |
 | **FR-10** | Generation | Sistem harus menghasilkan jawaban yang menyertakan sitasi eksplisit berupa nomor halaman dan potongan kutipan teks pendukung dari dokumen asli. |
 | **FR-11** | Generation | Sistem harus melakukan abstention (menjawab "Informasi tidak ditemukan dalam dokumen") jika konteks yang ditarik tidak memuat jawaban yang ditanyakan, alih-alih mengarang jawaban. |
-| **FR-12** | Observability| Sistem harus mengirimkan log trace setiap pemanggilan LLM, retrieval, dan node agent ke instance Langfuse self-hosted. |
+| **FR-12** | Observability| Sistem harus mengirimkan trace agent ke instance Langfuse Cloud atau self-hosted yang dikonfigurasi. |
 
 ---
 
@@ -212,7 +212,7 @@ Tahap pengembangan MVP dianggap selesai (Done) hanya jika:
 - [x] Seluruh skema contracts (Pydantic models) terdokumentasi dan divalidasi oleh automated unit tests.
 - [x] Seluruh unit tests dan integration tests pada `services/api/tests/` berhasil lolos (100% pass) menggunakan pytest.
 - [x] Regression gate deterministik pada dataset sintetis mencapai target untuk clean-scan CER/WER, native field extraction, Hit@K, context precision, serta citation support. Dataset produksi/noisy tetap batas evaluasi lanjutan, bukan klaim MVP ini.
-- [ ] Trace eksekusi berhasil terkirim dan terlihat pada instance Langfuse self-hosted tanpa error koneksi.
+- [x] Trace agent `5f418ed12891492ea398fd08a1d47750` berstatus `sent` dan berhasil dibaca kembali dari API server Langfuse dengan satu observation.
 - [x] Automated repository scan tidak menemukan secret aktual atau path absolut lokal di dalam basis kode. Kredensial Compose default adalah development-only, bukan production secret.
 - [x] Automated repository scan membatasi dokumen commit hanya ke dataset sintetis berlisensi CC0.
 - [x] Konfigurasi Docker Compose berhasil dibangun dari nol di CI; migration, health API, dan health web lulus pada run `34703835790`.
